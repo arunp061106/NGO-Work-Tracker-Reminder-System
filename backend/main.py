@@ -1,5 +1,7 @@
 import os
+import shutil
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
@@ -23,6 +25,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Create static directories for local uploads
+os.makedirs("static/uploads", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ================= AUTHENTICATION ENDPOINTS =================
 
@@ -167,13 +173,15 @@ def create_daily_log(
     db.commit()
     db.refresh(db_log)
 
-    # Cloudinary upload process (simulated / templated)
-    # In production, configure cloudinary with cloudinary.v2.uploader.upload
+    # Local file upload process
     for img in images:
-        # Save placeholder mock url
+        file_location = f"static/uploads/{img.filename}"
+        with open(file_location, "wb") as buffer:
+            shutil.copyfileobj(img.file, buffer)
+            
         db_photo = models.Photo(
-            cloudinary_url=f"https://res.cloudinary.com/demo/image/upload/v12345/{img.filename}",
-            public_id=f"ngo_evidence/{img.filename}",
+            cloudinary_url=f"/static/uploads/{img.filename}",
+            public_id=f"static/uploads/{img.filename}",
             log_id=db_log.id
         )
         db.add(db_photo)

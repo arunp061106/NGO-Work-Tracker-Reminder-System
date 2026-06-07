@@ -19,3 +19,7 @@ venv/
 .vscode/
 .idea/
 Thumbs.db
+
+# Local DB & Uploads
+backend/ngo_tracker.db
+backend/static/
