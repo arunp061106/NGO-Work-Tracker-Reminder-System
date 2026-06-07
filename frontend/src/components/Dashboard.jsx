@@ -29,6 +29,105 @@ export default function Dashboard({ currentUser, tasks, logs, gpsCoords, trigger
     return `Today you have completed ${completedCount} task${completedCount === 1 ? '' : 's'}. You conducted ${gpsCount} field/community visit${gpsCount === 1 ? '' : 's'} with logged GPS coordinates. Complete your remaining ${stats.pending} task${stats.pending === 1 ? '' : 's'} to meet today's quota!`;
   }, [logs, stats, currentUser]);
 
+  // 1. Task Completion Trend (Past 7 Days dynamic area chart coords)
+  const trendChart = useMemo(() => {
+    const dates = [];
+    const labels = [];
+    const counts = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      dates.push(dateStr);
+      labels.push(d.toLocaleDateString([], { month: 'short', day: 'numeric' }));
+      
+      const count = logs.filter(l => (currentUser.role === 'admin' || l.staff === currentUser.email) && l.date === dateStr).length;
+      counts.push(count);
+    }
+    
+    const maxVal = Math.max(...counts, 1);
+    
+    // Width of graph is 500px, left margin 50px.
+    const points = counts.map((c, idx) => {
+      const x = 50 + idx * 65;
+      const y = 170 - (c / maxVal) * 130; 
+      return { x, y, count: c };
+    });
+
+    const pathD = points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+    const fillD = `${pathD} L ${points[points.length - 1].x} 170 L ${points[0].x} 170 Z`;
+    
+    return { labels, points, pathD, fillD, maxVal };
+  }, [logs, currentUser]);
+
+  // 2. Category Distribution (Dynamic Donut sectors)
+  const categoryDonut = useMemo(() => {
+    const categoriesList = ['Field Visit', 'Community Survey', 'Admin Work', 'Fundraising', 'Health Camp', 'Training'];
+    const counts = categoriesList.map(cat => myTasks.filter(t => t.category === cat).length);
+    const total = counts.reduce((a, b) => a + b, 0);
+
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b'];
+    const badgeColors = ['bg-blue-500', 'bg-emerald-500', 'bg-amber-500', 'bg-violet-500', 'bg-pink-500', 'bg-slate-500'];
+
+    if (total === 0) {
+      return {
+        segments: [{ category: 'Empty', percent: 100, strokeDasharray: '100 0', strokeDashoffset: 100, color: '#cbd5e1' }],
+        counts: categoriesList.map((c, i) => ({ name: c, count: 0, color: badgeColors[i] }))
+      };
+    }
+    
+    let currentOffset = 100;
+    const segments = counts.map((c, idx) => {
+      const percent = Math.round((c / total) * 100);
+      const strokeDasharray = `${percent} ${100 - percent}`;
+      const strokeDashoffset = currentOffset;
+      currentOffset -= percent;
+      return {
+        category: categoriesList[idx],
+        percent,
+        strokeDasharray,
+        strokeDashoffset,
+        color: colors[idx]
+      };
+    }).filter(s => s.percent > 0);
+
+    const countsWithColor = categoriesList.map((c, idx) => ({
+      name: c,
+      count: counts[idx],
+      color: badgeColors[idx]
+    }));
+
+    return { segments, counts: countsWithColor };
+  }, [myTasks]);
+
+  // 3. Weekly Productivity (Monday to Sunday dynamic completed logs counts)
+  const weeklyProductivity = useMemo(() => {
+    const today = new Date();
+    const currentDay = today.getDay();
+    const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - distanceToMonday);
+
+    const counts = [];
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      const count = logs.filter(l => (currentUser.role === 'admin' || l.staff === currentUser.email) && l.date === dateStr).length;
+      counts.push(count);
+    }
+
+    const maxVal = Math.max(...counts, 1);
+    
+    return counts.map((c, idx) => ({
+      day: days[idx],
+      height: `${(c / maxVal) * 160}px`,
+      count: c
+    }));
+  }, [logs, currentUser]);
+
   return (
     <div className="space-y-6 fade-in">
       
@@ -107,25 +206,24 @@ export default function Dashboard({ currentUser, tasks, logs, gpsCoords, trigger
               <line x1="50" y1="140" x2="480" y2="140" stroke="#e2e8f0" strokeDasharray="4" className="dark:stroke-slate-700" />
               
               {/* Curve Fill Area */}
-              <path d="M 50 170 L 120 120 L 190 140 L 260 70 L 330 110 L 400 40 L 400 170 Z" fill="rgba(59, 130, 246, 0.1)" />
+              <path d={trendChart.fillD} fill="rgba(59, 130, 246, 0.1)" />
               {/* Curve Line */}
-              <path d="M 50 170 L 120 120 L 190 140 L 260 70 L 330 110 L 400 40" fill="none" stroke="#3b82f6" strokeWidth="3" />
+              <path d={trendChart.pathD} fill="none" stroke="#3b82f6" strokeWidth="3" />
               
               {/* Nodes */}
-              <circle cx="50" cy="170" r="4" fill="#3b82f6" />
-              <circle cx="120" cy="120" r="4" fill="#3b82f6" />
-              <circle cx="190" cy="140" r="4" fill="#3b82f6" />
-              <circle cx="260" cy="70" r="4" fill="#3b82f6" />
-              <circle cx="330" cy="110" r="4" fill="#3b82f6" />
-              <circle cx="400" cy="40" r="4" fill="#3b82f6" />
+              {trendChart.points.map((p, idx) => (
+                <g key={idx}>
+                  <circle cx={p.x} cy={p.y} r="4.5" fill="#3b82f6" stroke="#ffffff" strokeWidth="1.5" />
+                  {p.count > 0 && (
+                    <text x={p.x} y={p.y - 10} fill="#3b82f6" fontSize="9" fontWeight="bold" textAnchor="middle">{p.count}</text>
+                  )}
+                </g>
+              ))}
 
               {/* Labels */}
-              <text x="50" y="190" fill="#94a3b8" fontSize="10" textAnchor="middle">Jun 2</text>
-              <text x="120" y="190" fill="#94a3b8" fontSize="10" textAnchor="middle">Jun 3</text>
-              <text x="190" y="190" fill="#94a3b8" fontSize="10" textAnchor="middle">Jun 4</text>
-              <text x="260" y="190" fill="#94a3b8" fontSize="10" textAnchor="middle">Jun 5</text>
-              <text x="330" y="190" fill="#94a3b8" fontSize="10" textAnchor="middle">Jun 6</text>
-              <text x="400" y="190" fill="#94a3b8" fontSize="10" textAnchor="middle">Jun 7</text>
+              {trendChart.labels.map((lbl, idx) => (
+                <text key={idx} x={50 + idx * 65} y="190" fill="#94a3b8" fontSize="10" textAnchor="middle">{lbl}</text>
+              ))}
             </svg>
           </div>
         </div>
@@ -136,17 +234,27 @@ export default function Dashboard({ currentUser, tasks, logs, gpsCoords, trigger
           <div className="h-64 flex flex-col justify-center items-center">
             <svg width="150" height="150" viewBox="0 0 36 36" className="transform -rotate-90">
               <circle cx="18" cy="18" r="15.91" fill="transparent" stroke="#f1f5f9" strokeWidth="3" className="dark:stroke-slate-700"></circle>
-              {/* Segment 1: Field Visit (40%) */}
-              <circle cx="18" cy="18" r="15.91" fill="transparent" stroke="#3b82f6" strokeWidth="3.2" strokeDasharray="40 60" strokeDashoffset="100"></circle>
-              {/* Segment 2: Health Camp (30%) */}
-              <circle cx="18" cy="18" r="15.91" fill="transparent" stroke="#10b981" strokeWidth="3.2" strokeDasharray="30 70" strokeDashoffset="60"></circle>
-              {/* Segment 3: Other (30%) */}
-              <circle cx="18" cy="18" r="15.91" fill="transparent" stroke="#f59e0b" strokeWidth="3.2" strokeDasharray="30 70" strokeDashoffset="30"></circle>
+              {categoryDonut.segments.map((seg, idx) => (
+                <circle 
+                  key={idx}
+                  cx="18" 
+                  cy="18" 
+                  r="15.91" 
+                  fill="transparent" 
+                  stroke={seg.color} 
+                  strokeWidth="3.2" 
+                  strokeDasharray={seg.strokeDasharray} 
+                  strokeDashoffset={seg.strokeDashoffset}
+                />
+              ))}
             </svg>
-            <div className="grid grid-cols-3 gap-2 mt-4 text-[10px]">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-500 rounded-full"></span> Field Visit</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-emerald-500 rounded-full"></span> Health Camp</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 bg-amber-500 rounded-full"></span> Admin Work</span>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-4 text-[10px]">
+              {categoryDonut.counts.map((c, idx) => (
+                <span key={idx} className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                  <span className={`w-2 h-2 rounded-full ${c.color}`}></span> 
+                  {c.name}: <strong>{c.count}</strong>
+                </span>
+              ))}
             </div>
           </div>
         </div>
@@ -193,41 +301,20 @@ export default function Dashboard({ currentUser, tasks, logs, gpsCoords, trigger
         <div className="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shadow-md p-5 rounded-2xl flex flex-col h-[350px]">
           <h3 className="font-bold text-slate-900 dark:text-white font-outfit mb-4">Weekly Productivity</h3>
           <div className="flex-grow flex items-end justify-between px-4 pb-2 pt-6">
-            {/* Mon */}
-            <div className="flex flex-col items-center gap-2 w-8">
-              <div className="w-full bg-emerald-500/90 rounded-t-lg transition-all duration-500" style={{ height: '80px' }}></div>
-              <span className="text-[10px] text-slate-400 font-medium">Mon</span>
-            </div>
-            {/* Tue */}
-            <div className="flex flex-col items-center gap-2 w-8">
-              <div className="w-full bg-emerald-500/90 rounded-t-lg transition-all duration-500" style={{ height: '120px' }}></div>
-              <span className="text-[10px] text-slate-400 font-medium">Tue</span>
-            </div>
-            {/* Wed */}
-            <div className="flex flex-col items-center gap-2 w-8">
-              <div className="w-full bg-emerald-500/90 rounded-t-lg transition-all duration-500" style={{ height: '60px' }}></div>
-              <span className="text-[10px] text-slate-400 font-medium">Wed</span>
-            </div>
-            {/* Thu */}
-            <div className="flex flex-col items-center gap-2 w-8">
-              <div className="w-full bg-emerald-500/90 rounded-t-lg transition-all duration-500" style={{ height: '140px' }}></div>
-              <span className="text-[10px] text-slate-400 font-medium">Thu</span>
-            </div>
-            {/* Fri */}
-            <div className="flex flex-col items-center gap-2 w-8">
-              <div className="w-full bg-emerald-500/90 rounded-t-lg transition-all duration-500" style={{ height: '100px' }}></div>
-              <span className="text-[10px] text-slate-400 font-medium">Fri</span>
-            </div>
-            {/* Sat */}
-            <div className="flex flex-col items-center gap-2 w-8">
-              <div className="w-full bg-emerald-500/90 rounded-t-lg transition-all duration-500" style={{ height: '160px' }}></div>
-              <span className="text-[10px] text-slate-400 font-medium">Sat</span>
-            </div>
-            {/* Sun */}
-            <div className="flex flex-col items-center gap-2 w-8">
-              <div className="w-full bg-emerald-500/90 rounded-t-lg transition-all duration-500" style={{ height: '40px' }}></div>
-              <span className="text-[10px] text-slate-400 font-medium">Sun</span>
-            </div>
+            {weeklyProductivity.map((p, idx) => (
+              <div key={idx} className="flex flex-col items-center gap-2 w-8">
+                <div className="w-full flex flex-col justify-end items-center group relative h-[160px]">
+                  {p.count > 0 && (
+                    <span className="absolute bottom-full mb-1 text-[10px] font-bold text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity">{p.count}</span>
+                  )}
+                  <div 
+                    className="w-full bg-emerald-500/90 hover:bg-emerald-600 rounded-t-lg transition-all duration-500 cursor-pointer" 
+                    style={{ height: p.height }}
+                  ></div>
+                </div>
+                <span className="text-[10px] text-slate-400 font-medium">{p.day}</span>
+              </div>
+            ))}
           </div>
         </div>
 

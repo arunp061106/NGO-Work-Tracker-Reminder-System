@@ -33,17 +33,8 @@ export default function App() {
   const [gpsCoords, setGpsCoords] = useState(null);
 
   // Default values
-  const defaultTasks = [
-    { id: 't-1', title: 'Distribute health booklets', desc: 'Distribute basic hygiene packets and child care flyers to villagers.', category: 'Field Visit', priority: 'High', dueDate: '2026-06-07', dueTime: '18:30', reminder: '60', location: 'Village Hall A', notes: 'Partner with local nurses', status: 'Pending', staff: 'staff@ngo.org' },
-    { id: 't-2', title: 'Community Water Audit', desc: 'Check filtration outputs and speak with clean water distribution workers.', category: 'Community Survey', priority: 'Medium', dueDate: '2026-06-08', dueTime: '11:00', reminder: '15', location: 'North Block Tube', notes: 'Report arsenic reports', status: 'Pending', staff: 'staff@ngo.org' },
-    { id: 't-3', title: 'Submit monthly financial tally', desc: 'Scan and review invoice sheets from training workshop.', category: 'Admin Work', priority: 'Low', dueDate: '2026-06-10', dueTime: '15:00', reminder: '30', location: 'Office Desk 2', notes: 'Send copy to head office', status: 'In Progress', staff: 'staff@ngo.org' },
-    { id: 't-4', title: 'Sponsor Call Session', desc: 'Direct outreach to major donors to coordinate upcoming benefit details.', category: 'Fundraising', priority: 'High', dueDate: '2026-06-06', dueTime: '16:00', reminder: '5', location: 'Skype/Phone Call', notes: 'Focus on medical supplies donors', status: 'Overdue', staff: 'staff@ngo.org' },
-    { id: 't-5', title: 'Inoculation camp logistics', desc: 'Coordinate safe cold chain transport for vaccines.', category: 'Health Camp', priority: 'High', dueDate: '2026-06-07', dueTime: '10:00', reminder: '60', location: 'District Clinic', notes: 'Maintain correct temperature log', status: 'Completed', staff: 'staff@ngo.org' }
-  ];
-
-  const defaultLogs = [
-    { id: 'l-1', taskName: 'Inoculation camp logistics', date: '2026-06-07', completionTime: '10:15 AM', remarks: 'Vaccine vials safely loaded in ice-chests. Transport was on schedule.', observations: 'Warm weather means ice levels should be doubled next week.', outcome: '60 children fully vaccinated', staff: 'staff@ngo.org', gps: '28.6139, 77.2090' }
-  ];
+  const defaultTasks = [];
+  const defaultLogs = [];
 
   // Initialize DB from LocalStorage
   useEffect(() => {
@@ -69,10 +60,7 @@ export default function App() {
     const localNotifs = localStorage.getItem('notifications');
     if (localNotifs) setNotifications(JSON.parse(localNotifs));
     else {
-      const initialNotifs = [
-        { id: 'n-1', message: "Task 'Sponsor Call Session' is overdue!", timestamp: new Date(Date.now() - 3600000).toLocaleString() },
-        { id: 'n-2', message: "Attendance registered: Punched In successfully", timestamp: new Date(Date.now() - 7200000).toLocaleString() }
-      ];
+      const initialNotifs = [];
       setNotifications(initialNotifs);
       localStorage.setItem('notifications', JSON.stringify(initialNotifs));
     }

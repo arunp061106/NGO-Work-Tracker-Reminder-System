@@ -931,20 +931,9 @@
         { name: 'Sarah Connor', email: 'admin@ngo.org', password: 'password', role: 'admin', tasksCompleted: 8, punchStatus: 'PUNCHED_IN' },
         { name: 'Jane Foster', email: 'jane@ngo.org', password: 'password', role: 'staff', tasksCompleted: 2, punchStatus: 'PUNCHED_OUT' }
       ],
-      tasks: [
-        { id: 't-1', title: 'Distribute health booklets', desc: 'Distribute basic hygiene packets and child care information flyers to villagers.', category: 'Field Visit', priority: 'High', dueDate: '2026-06-07', dueTime: '18:30', reminder: '60', location: 'Village Hall A', notes: 'Partner with local nurses', status: 'Pending', staff: 'staff@ngo.org' },
-        { id: 't-2', title: 'Community Water Audit', desc: 'Check filtration plant outputs and speak with clean water distribution workers.', category: 'Community Survey', priority: 'Medium', dueDate: '2026-06-08', dueTime: '11:00', reminder: '15', location: 'North Block Tube', notes: 'Report any arsenic reports', status: 'Pending', staff: 'staff@ngo.org' },
-        { id: 't-3', title: 'Submit monthly financial tally', desc: 'Scan and review invoice sheets from training workshop.', category: 'Admin Work', priority: 'Low', dueDate: '2026-06-10', dueTime: '15:00', reminder: '30', location: 'Office Desk 2', notes: 'Send copy to head office', status: 'In Progress', staff: 'staff@ngo.org' },
-        { id: 't-4', title: 'Sponsor Call Session', desc: 'Direct outreach to major donors to coordinate upcoming annual benefit details.', category: 'Fundraising', priority: 'High', dueDate: '2026-06-06', dueTime: '16:00', reminder: '5', location: 'Skype/Phone Call', notes: 'Focus on medical supplies donors', status: 'Overdue', staff: 'staff@ngo.org' },
-        { id: 't-5', title: 'Inoculation camp logistics', desc: 'Coordinate safe cold chain transport for vaccines.', category: 'Health Camp', priority: 'High', dueDate: '2026-06-07', dueTime: '10:00', reminder: '60', location: 'District Clinic', notes: 'Maintain correct temperature log', status: 'Completed', staff: 'staff@ngo.org' }
-      ],
-      logs: [
-        { id: 'l-1', taskName: 'Inoculation camp logistics', date: '2026-06-07', completionTime: '10:15 AM', remarks: 'Vaccine vials safely loaded in ice-chests. Transport was on schedule.', observations: 'Warm weather means ice levels should be doubled next week.', outcome: '60 children fully vaccinated', photos: [], staff: 'staff@ngo.org', gps: '28.6139, 77.2090' }
-      ],
-      notifications: [
-        { id: 'n-1', message: "Task 'Sponsor Call Session' is overdue!", timestamp: new Date(Date.now() - 3600000).toLocaleString() },
-        { id: 'n-2', message: "Attendance registered: Punched In successfully", timestamp: new Date(Date.now() - 7200000).toLocaleString() }
-      ]
+      tasks: [],
+      logs: [],
+      notifications: []
     };
 
     // Initialize Database
@@ -2176,14 +2165,27 @@
       const textColor = isDark ? '#94a3b8' : '#64748b';
       const gridColor = isDark ? '#334155' : '#f1f5f9';
 
-      // 1. Task Completion Trend (Past 6 days simulation)
+      // 1. Task Completion Trend (Past 7 days dynamically calculated from logs)
+      const trendLabels = [];
+      const trendData = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        trendLabels.push(d.toLocaleDateString([], { month: 'short', day: 'numeric' }));
+        
+        // Count logs completed on this date by current user (admins see all)
+        const count = db.logs.filter(l => (currentUser.role === 'admin' || l.staff === currentUser.email) && l.date === dateStr).length;
+        trendData.push(count);
+      }
+
       trendChartInstance = new Chart(ctxTrend, {
         type: 'line',
         data: {
-          labels: ['Jun 2', 'Jun 3', 'Jun 4', 'Jun 5', 'Jun 6', 'Jun 7'],
+          labels: trendLabels,
           datasets: [{
             label: 'Tasks Completed',
-            data: [3, 5, 4, 8, 3, 6],
+            data: trendData,
             borderColor: '#3b82f6',
             backgroundColor: 'rgba(59, 130, 246, 0.1)',
             borderWidth: 2.5,
@@ -2197,7 +2199,14 @@
           plugins: { legend: { display: false } },
           scales: {
             x: { grid: { display: false }, ticks: { color: textColor } },
-            y: { grid: { color: gridColor }, ticks: { color: textColor } }
+            y: { 
+              grid: { color: gridColor }, 
+              ticks: { 
+                color: textColor,
+                stepSize: 1,
+                precision: 0
+              } 
+            }
           }
         }
       });
@@ -2226,14 +2235,32 @@
         }
       });
 
-      // 3. Weekly Productivity (Hours / Output Sim)
+      // 3. Weekly Productivity (Monday to Sunday dynamic calculation)
+      const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const weekCounts = [0, 0, 0, 0, 0, 0, 0];
+      
+      const today = new Date();
+      const currentDay = today.getDay(); // 0 is Sunday, 1 is Monday, etc.
+      const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - distanceToMonday);
+
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        const dateStr = d.toISOString().split('T')[0];
+        
+        const count = db.logs.filter(l => (currentUser.role === 'admin' || l.staff === currentUser.email) && l.date === dateStr).length;
+        weekCounts[i] = count;
+      }
+
       productivityChartInstance = new Chart(ctxProductivity, {
         type: 'bar',
         data: {
-          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          labels: weekDays,
           datasets: [{
             label: 'Tasks',
-            data: [4, 6, 3, 7, 5, 8, 2],
+            data: weekCounts,
             backgroundColor: '#10b981',
             borderRadius: 6
           }]
@@ -2244,7 +2271,14 @@
           plugins: { legend: { display: false } },
           scales: {
             x: { grid: { display: false }, ticks: { color: textColor } },
-            y: { grid: { color: gridColor }, ticks: { color: textColor } }
+            y: { 
+              grid: { color: gridColor }, 
+              ticks: { 
+                color: textColor,
+                stepSize: 1,
+                precision: 0
+              } 
+            }
           }
         }
       });
