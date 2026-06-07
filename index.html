@@ -1,0 +1,2255 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NGO Work Tracker & Reminder System</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="A modern and professional task management, reminder, and work logging system for NGO staff and administrators.">
+  <meta name="keywords" content="NGO, Task Tracker, Work Log, Attendance, GPS Check-in, Reports">
+  
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            outfit: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            },
+            success: {
+              50: '#ecfdf5',
+              500: '#10b981',
+              600: '#059669',
+            },
+            warning: {
+              500: '#f59e0b',
+            },
+            danger: {
+              500: '#ef4444',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Custom Scrollbar and Styles -->
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .font-outfit {
+      font-family: 'Outfit', sans-serif;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: #475569;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Print Styles for PDF Generation */
+    @media print {
+      body {
+        background: white !important;
+        color: black !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-container {
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+      }
+      .print-card {
+        border: 1px solid #e2e8f0 !important;
+        break-inside: avoid;
+      }
+    }
+
+    /* Animations */
+    .fade-in {
+      animation: fadeIn 0.25s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-200 min-h-screen flex flex-col font-sans">
+
+  <!-- ================= AUTH CONTAINER ================= -->
+  <div id="auth-container" class="flex-grow flex items-center justify-center p-4 bg-gradient-to-tr from-blue-500/10 via-slate-50 to-emerald-500/10 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/20">
+    <div class="w-full max-w-md bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 shadow-2xl rounded-2xl p-8 transition-all duration-300">
+      
+      <!-- Logo / Header -->
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center p-3 bg-brand-500/10 rounded-2xl text-brand-600 dark:text-brand-500 mb-3">
+          <i data-lucide="heart-handshake" class="w-8 h-8"></i>
+        </div>
+        <h1 class="text-2xl font-bold font-outfit tracking-tight text-slate-900 dark:text-white">NGO Work Tracker</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Staff Work Tracker & Reminder System</p>
+      </div>
+
+      <!-- Login Form -->
+      <div id="login-form-panel">
+        <form id="login-form" onsubmit="handleLogin(event)">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Email Address</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                  <i data-lucide="mail" class="w-4 h-4"></i>
+                </span>
+                <input type="email" id="login-email" required placeholder="name@ngo.org" 
+                  class="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 dark:text-white text-sm">
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Password</label>
+                <button type="button" onclick="showForgotPassword()" class="text-xs text-brand-600 dark:text-brand-500 hover:underline">Forgot Password?</button>
+              </div>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                  <i data-lucide="lock" class="w-4 h-4"></i>
+                </span>
+                <input type="password" id="login-password" required placeholder="••••••••" 
+                  class="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 dark:text-white text-sm">
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" 
+            class="w-full mt-6 py-2.5 bg-gradient-to-r from-brand-600 to-blue-500 hover:from-brand-700 hover:to-blue-600 text-white font-medium rounded-xl shadow-lg shadow-brand-500/20 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-sm flex items-center justify-center gap-2">
+            Sign In <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </form>
+
+        <!-- Demo Login Shortcuts -->
+        <div class="mt-6 pt-6 border-t border-slate-100 dark:border-slate-700/50">
+          <p class="text-xs text-center text-slate-400 dark:text-slate-500 mb-3">Quick Demo Login (Evaluator mode)</p>
+          <div class="grid grid-cols-2 gap-3">
+            <button onclick="quickLogin('staff')" 
+              class="flex items-center justify-center gap-1.5 py-2 px-3 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300">
+              <i data-lucide="user" class="w-3.5 h-3.5 text-brand-500"></i> Staff Portal
+            </button>
+            <button onclick="quickLogin('admin')" 
+              class="flex items-center justify-center gap-1.5 py-2 px-3 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300">
+              <i data-lucide="shield" class="w-3.5 h-3.5 text-emerald-500"></i> Admin Panel
+            </button>
+          </div>
+        </div>
+
+        <div class="text-center mt-6">
+          <p class="text-xs text-slate-500 dark:text-slate-400">Don't have an account? <button onclick="showRegister()" class="text-brand-600 dark:text-brand-500 hover:underline font-semibold">Sign up</button></p>
+        </div>
+      </div>
+
+      <!-- Register Form (Hidden by default) -->
+      <div id="register-form-panel" class="hidden">
+        <form id="register-form" onsubmit="handleRegister(event)">
+          <div class="space-y-3.5">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Full Name</label>
+              <input type="text" id="reg-name" required placeholder="John Doe" 
+                class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 dark:text-white text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Email Address</label>
+              <input type="email" id="reg-email" required placeholder="john@ngo.org" 
+                class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 dark:text-white text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Password</label>
+              <input type="password" id="reg-password" required placeholder="••••••••" 
+                class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 dark:text-white text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Role</label>
+              <select id="reg-role" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 dark:text-white text-sm">
+                <option value="staff">Staff Member</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" 
+            class="w-full mt-6 py-2.5 bg-gradient-to-r from-brand-600 to-blue-500 text-white font-medium rounded-xl shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-sm">
+            Create Account
+          </button>
+        </form>
+
+        <div class="text-center mt-6">
+          <p class="text-xs text-slate-500 dark:text-slate-400">Already have an account? <button onclick="showLogin()" class="text-brand-600 dark:text-brand-500 hover:underline font-semibold">Sign in</button></p>
+        </div>
+      </div>
+
+      <!-- Forgot Password Panel (Hidden by default) -->
+      <div id="forgot-password-panel" class="hidden">
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Enter your email and we'll send you a password reset simulation link.</p>
+        <form id="forgot-form" onsubmit="handleForgotPasswordSubmit(event)">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Email Address</label>
+            <input type="email" id="forgot-email" required placeholder="name@ngo.org" 
+              class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 dark:text-white text-sm">
+          </div>
+          <button type="submit" 
+            class="w-full mt-4 py-2.5 bg-gradient-to-r from-brand-600 to-blue-500 text-white font-medium rounded-xl shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all text-sm">
+            Reset Password
+          </button>
+        </form>
+        <div class="text-center mt-6">
+          <button onclick="showLogin()" class="text-xs text-slate-500 dark:text-slate-400 hover:underline">Back to Login</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ================= APP DASHBOARD CONTAINER ================= -->
+  <div id="app-container" class="hidden flex-grow flex flex-col md:flex-row overflow-hidden h-screen">
+    
+    <!-- Sidebar Panel (Persistent on desktop, collapsible on mobile) -->
+    <aside id="sidebar" class="no-print w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700/60 flex flex-col flex-shrink-0 z-30 transition-all duration-300">
+      <!-- Sidebar Logo -->
+      <div class="h-16 px-6 border-b border-slate-100 dark:border-slate-700/40 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <span class="p-2 bg-brand-500/10 rounded-xl text-brand-600 dark:text-brand-500">
+            <i data-lucide="heart-handshake" class="w-5 h-5"></i>
+          </span>
+          <span class="font-outfit font-bold tracking-tight text-lg text-slate-900 dark:text-white">NGO Tracker</span>
+        </div>
+        <!-- Dark mode toggle -->
+        <button onclick="toggleDarkMode()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400">
+          <i data-lucide="sun" id="sun-icon" class="w-4 h-4 hidden"></i>
+          <i data-lucide="moon" id="moon-icon" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Staff/User Card -->
+      <div class="p-4 mx-4 my-3 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-brand-600 to-blue-500 flex items-center justify-center text-white font-bold font-outfit" id="user-avatar">
+          JD
+        </div>
+        <div class="overflow-hidden">
+          <h4 class="font-semibold text-sm text-slate-900 dark:text-white truncate" id="user-name">John Doe</h4>
+          <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-brand-500/15 text-brand-600 dark:text-brand-400 capitalize" id="user-role-badge">
+            Staff Member
+          </span>
+        </div>
+      </div>
+
+      <!-- Nav List -->
+      <nav class="flex-grow px-4 space-y-1.5 py-2 overflow-y-auto">
+        <button onclick="switchPanel('dashboard')" id="nav-dashboard" class="nav-btn active flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl transition-all bg-brand-500 text-white shadow-md shadow-brand-500/15">
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+        </button>
+        <button onclick="switchPanel('task-manager')" id="nav-task-manager" class="nav-btn flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+          <i data-lucide="check-square" class="w-4 h-4"></i> Task Management
+        </button>
+        <button onclick="switchPanel('calendar-view')" id="nav-calendar-view" class="nav-btn flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+          <i data-lucide="calendar" class="w-4 h-4"></i> Calendar View
+        </button>
+        <button onclick="switchPanel('daily-log')" id="nav-daily-log" class="nav-btn flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+          <i data-lucide="clipboard-list" class="w-4 h-4"></i> Daily Work Log
+        </button>
+        <button onclick="switchPanel('reports')" id="nav-reports" class="nav-btn flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+          <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Reports & Archive
+        </button>
+        <button onclick="switchPanel('admin-panel')" id="nav-admin-panel" class="nav-btn hidden flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/30">
+          <i data-lucide="shield" class="w-4 h-4 text-emerald-500"></i> Admin Panel
+        </button>
+      </nav>
+
+      <!-- Sidebar Footer / Logout -->
+      <div class="p-4 border-t border-slate-100 dark:border-slate-700/40">
+        <button onclick="handleLogout()" class="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all">
+          <i data-lucide="log-out" class="w-4 h-4"></i> Log Out
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow flex flex-col min-w-0 overflow-y-auto">
+      
+      <!-- Topbar Header -->
+      <header class="no-print h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700/60 px-6 flex items-center justify-between flex-shrink-0 z-20">
+        <!-- Sidebar Toggle (Mobile) -->
+        <button onclick="toggleSidebar()" class="md:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg mr-2">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+
+        <!-- Global Search Bar -->
+        <div class="relative w-64 md:w-80 max-w-sm hidden sm:block">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+            <i data-lucide="search" class="w-4 h-4"></i>
+          </span>
+          <input type="text" id="global-search-input" onkeyup="handleGlobalSearch(event)" placeholder="Search tasks, categories, outcomes..." 
+            class="w-full pl-9 pr-4 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs dark:text-white">
+        </div>
+
+        <!-- Right Header Items -->
+        <div class="flex items-center gap-4 ml-auto">
+          
+          <!-- Attendance Tracker Button -->
+          <div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800">
+            <span id="attendance-timer" class="text-xs font-semibold px-2 font-mono text-slate-600 dark:text-slate-400">00:00:00</span>
+            <button onclick="toggleAttendance()" id="attendance-btn" 
+              class="px-3 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-medium transition-all shadow-sm">
+              Punch In
+            </button>
+          </div>
+
+          <!-- GPS Checkin Info -->
+          <button onclick="triggerGPSCheckin()" class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-medium transition-all">
+            <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+            <span id="gps-status">GPS Checkin</span>
+          </button>
+
+          <!-- In-App Notification Bell -->
+          <div class="relative">
+            <button onclick="toggleNotificationCenter()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400 relative">
+              <i data-lucide="bell" class="w-5 h-5"></i>
+              <span id="notification-badge" class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-slate-800 rounded-full hidden"></span>
+            </button>
+            <!-- Dropdown Notification Center -->
+            <div id="notification-center" class="hidden absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl p-4 z-50">
+              <div class="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-700/60 mb-2">
+                <h4 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5"><i data-lucide="bell" class="w-4 h-4"></i> Alerts</h4>
+                <button onclick="clearNotifications()" class="text-xs text-brand-600 dark:text-brand-500 hover:underline">Clear all</button>
+              </div>
+              <div class="max-h-60 overflow-y-auto space-y-2" id="notification-list">
+                <p class="text-xs text-slate-400 text-center py-4">No notifications yet.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </header>
+
+      <!-- ================= MAIN CONTENT PANELS ================= -->
+      <div class="flex-grow p-6 space-y-6 container mx-auto">
+        
+        <!-- ================= PANEL: DASHBOARD ================= -->
+        <div id="panel-dashboard" class="panel-view fade-in space-y-6">
+          
+          <!-- Top Greeting & AI Summary Card -->
+          <div class="bg-gradient-to-r from-brand-600 via-blue-500 to-indigo-600 rounded-3xl p-6 md:p-8 text-white shadow-xl shadow-brand-500/10 relative overflow-hidden">
+            <div class="absolute right-0 bottom-0 top-0 w-1/3 opacity-10 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent pointer-events-none"></div>
+            <div class="relative z-10 max-w-2xl">
+              <h2 class="text-2xl md:text-3xl font-extrabold font-outfit tracking-tight" id="dashboard-welcome">Welcome back, John!</h2>
+              <p class="text-white/80 text-sm mt-1.5">Here is your customized NGO impact report and activities summaries.</p>
+              
+              <!-- AI Daily Summary Section -->
+              <div class="mt-6 p-4 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl">
+                <div class="flex items-center gap-2 text-white font-semibold text-xs tracking-wider uppercase mb-1.5">
+                  <i data-lucide="sparkles" class="w-4 h-4 text-amber-300"></i> AI Generated Daily Summary
+                </div>
+                <p class="text-sm text-white/95 leading-relaxed" id="ai-daily-summary-text">
+                  "Today 0 tasks were completed, 0 community visits were conducted, and 0 field photos were uploaded. Punch in to log progress!"
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary Analytics Grid -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Card 1 -->
+            <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shadow-lg shadow-slate-100/50 dark:shadow-none p-5 rounded-2xl flex items-center justify-between">
+              <div>
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Total Tasks</span>
+                <span class="text-2xl md:text-3xl font-extrabold font-outfit mt-1 block dark:text-white" id="stat-total-tasks">0</span>
+              </div>
+              <div class="p-3 bg-brand-500/10 text-brand-600 dark:text-brand-400 rounded-xl"><i data-lucide="clipboard" class="w-6 h-6"></i></div>
+            </div>
+            <!-- Card 2 -->
+            <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shadow-lg shadow-slate-100/50 dark:shadow-none p-5 rounded-2xl flex items-center justify-between">
+              <div>
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Pending Tasks</span>
+                <span class="text-2xl md:text-3xl font-extrabold font-outfit mt-1 block dark:text-white" id="stat-pending-tasks">0</span>
+              </div>
+              <div class="p-3 bg-amber-500/10 text-amber-600 dark:text-amber-500 rounded-xl"><i data-lucide="clock" class="w-6 h-6"></i></div>
+            </div>
+            <!-- Card 3 -->
+            <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shadow-lg shadow-slate-100/50 dark:shadow-none p-5 rounded-2xl flex items-center justify-between">
+              <div>
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Completed</span>
+                <span class="text-2xl md:text-3xl font-extrabold font-outfit mt-1 block dark:text-white" id="stat-completed-tasks">0</span>
+              </div>
+              <div class="p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl"><i data-lucide="check-circle" class="w-6 h-6"></i></div>
+            </div>
+            <!-- Card 4 -->
+            <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shadow-lg shadow-slate-100/50 dark:shadow-none p-5 rounded-2xl flex items-center justify-between">
+              <div>
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">High Priority</span>
+                <span class="text-2xl md:text-3xl font-extrabold font-outfit mt-1 block dark:text-white" id="stat-high-tasks">0</span>
+              </div>
+              <div class="p-3 bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl"><i data-lucide="alert-triangle" class="w-6 h-6"></i></div>
+            </div>
+          </div>
+
+          <!-- Charts Layout -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Chart 1: Task Completion Trend -->
+            <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shadow-md p-5 rounded-2xl lg:col-span-2">
+              <h3 class="font-bold text-slate-900 dark:text-white font-outfit mb-4">Task Completion Trend</h3>
+              <div class="h-64 relative">
+                <canvas id="completionTrendChart"></canvas>
+              </div>
+            </div>
+            <!-- Chart 2: Category Distribution -->
+            <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shadow-md p-5 rounded-2xl">
+              <h3 class="font-bold text-slate-900 dark:text-white font-outfit mb-4">Category Distribution</h3>
+              <div class="h-64 relative">
+                <canvas id="categoryDistributionChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dashboard Double Grid: Today's Tasks & Weekly Productivity -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Today's Tasks Checklist -->
+            <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shadow-md p-5 rounded-2xl flex flex-col h-[350px]">
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-900 dark:text-white font-outfit">Today's Tasks</h3>
+                <span class="text-xs bg-brand-500/10 text-brand-600 dark:text-brand-400 py-1 px-2.5 rounded-full font-medium" id="today-tasks-count">0 Remaining</span>
+              </div>
+              <div class="flex-grow overflow-y-auto space-y-2.5 pr-1" id="dashboard-tasks-list">
+                <!-- Inner Tasks -->
+              </div>
+            </div>
+
+            <!-- Productivity Metric -->
+            <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shadow-md p-5 rounded-2xl flex flex-col h-[350px]">
+              <h3 class="font-bold text-slate-900 dark:text-white font-outfit mb-4">Weekly Productivity</h3>
+              <div class="flex-grow relative">
+                <canvas id="weeklyProductivityChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ================= PANEL: TASK MANAGEMENT ================= -->
+        <div id="panel-task-manager" class="panel-view fade-in space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 class="text-2xl font-bold font-outfit dark:text-white">Task Management</h2>
+              <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Create, view, filter, and track daily tasks</p>
+            </div>
+            <!-- Create Task Button -->
+            <button onclick="openTaskModal()" class="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-brand-500/10">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i> Create Task
+            </button>
+          </div>
+
+          <!-- Task Filters -->
+          <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 p-4 rounded-2xl flex flex-wrap items-center gap-3 shadow-sm">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-2">Filters:</span>
+            <!-- Category Filter -->
+            <select id="task-filter-category" onchange="filterTasks()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300">
+              <option value="all">All Categories</option>
+              <option value="Field Visit">Field Visit</option>
+              <option value="Community Survey">Community Survey</option>
+              <option value="Admin Work">Admin Work</option>
+              <option value="Fundraising">Fundraising</option>
+              <option value="Health Camp">Health Camp</option>
+              <option value="Training">Training</option>
+            </select>
+            <!-- Priority Filter -->
+            <select id="task-filter-priority" onchange="filterTasks()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300">
+              <option value="all">All Priorities</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+            <!-- Status Filter -->
+            <select id="task-filter-status" onchange="filterTasks()" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300">
+              <option value="all">All Statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="Overdue">Overdue</option>
+            </select>
+            <!-- Reset Filters -->
+            <button onclick="resetTaskFilters()" class="text-xs text-slate-400 hover:text-brand-600 transition-all">Reset Filters</button>
+          </div>
+
+          <!-- Tasks List Display Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5" id="tasks-cards-grid">
+            <!-- Grid cards injected dynamically -->
+          </div>
+        </div>
+
+        <!-- ================= PANEL: CALENDAR VIEW ================= -->
+        <div id="panel-calendar-view" class="panel-view fade-in space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 class="text-2xl font-bold font-outfit dark:text-white">Calendar View</h2>
+              <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Visually plan and schedule tasks</p>
+            </div>
+            <!-- Toggle Views -->
+            <div class="flex bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1 rounded-xl">
+              <button onclick="toggleCalendarTab('month')" id="cal-tab-month" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm transition-all">Month</button>
+              <button onclick="toggleCalendarTab('week')" id="cal-tab-week" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 transition-all">Week</button>
+              <button onclick="toggleCalendarTab('day')" id="cal-tab-day" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 transition-all">Day</button>
+            </div>
+          </div>
+
+          <!-- Month Selector -->
+          <div class="flex items-center justify-between bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 p-4 rounded-2xl shadow-sm">
+            <button onclick="changeCalendarPeriod(-1)" class="p-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-slate-600 dark:text-slate-300">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+            <h3 class="font-bold text-lg text-slate-950 dark:text-white font-outfit" id="calendar-header-title">June 2026</h3>
+            <button onclick="changeCalendarPeriod(1)" class="p-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-slate-600 dark:text-slate-300">
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Month Layout -->
+          <div id="calendar-month-panel" class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-3xl p-4 shadow-sm overflow-x-auto">
+            <div class="min-w-[700px]">
+              <!-- Days Header -->
+              <div class="grid grid-cols-7 text-center font-bold text-xs uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-700 pb-3 mb-2">
+                <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+              </div>
+              <!-- Dates Grid -->
+              <div class="grid grid-cols-7 gap-2" id="calendar-month-grid" style="grid-template-rows: repeat(5, minmax(100px, 1fr));">
+                <!-- Injected dates -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Week Layout (Hidden by default) -->
+          <div id="calendar-week-panel" class="hidden bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-3xl p-4 shadow-sm overflow-x-auto">
+            <div class="min-w-[700px]">
+              <!-- Days grid header -->
+              <div class="grid grid-cols-7 text-center font-bold text-xs uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-700 pb-3 mb-2" id="calendar-week-header">
+                <!-- Days of current week -->
+              </div>
+              <div class="grid grid-cols-7 gap-2 min-h-[400px]" id="calendar-week-grid">
+                <!-- Injected days of week tasks -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Day Layout (Hidden by default) -->
+          <div id="calendar-day-panel" class="hidden bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm">
+            <div class="max-w-2xl mx-auto space-y-4">
+              <h3 class="font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700 pb-2 flex justify-between items-center">
+                <span>Task Timelines</span>
+                <span id="calendar-day-date" class="text-sm font-normal text-slate-400">June 7, 2026</span>
+              </h3>
+              <div class="space-y-3" id="calendar-day-grid">
+                <!-- Daily timeline cards -->
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ================= PANEL: DAILY WORK LOG ================= -->
+        <div id="panel-daily-log" class="panel-view fade-in space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 class="text-2xl font-bold font-outfit dark:text-white">Daily Work Log</h2>
+              <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Submit field work logs, remarks, outcome statements and photos</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Work Log Submission Form -->
+            <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shadow-md p-6 rounded-2xl lg:col-span-1 h-fit space-y-4">
+              <h3 class="font-bold text-slate-900 dark:text-white font-outfit border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
+                <i data-lucide="clipboard-signature" class="w-5 h-5 text-brand-500"></i> Record Completed Work
+              </h3>
+              
+              <form id="worklog-form" onsubmit="submitWorkLog(event)" class="space-y-3.5">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Select Completed Task</label>
+                  <select id="log-task-select" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs dark:text-white">
+                    <option value="" disabled selected>Choose a pending task...</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Remarks</label>
+                  <textarea id="log-remarks" rows="2" required placeholder="What was achieved?" 
+                    class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs dark:text-white"></textarea>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Observations</label>
+                  <textarea id="log-observations" rows="2" placeholder="Field challenges or local feedback" 
+                    class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs dark:text-white"></textarea>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Outcome</label>
+                  <input type="text" id="log-outcome" required placeholder="e.g. 50 families distributed kits" 
+                    class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs dark:text-white">
+                </div>
+
+                <!-- Drag & Drop Photo Upload -->
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Evidence Photos</label>
+                  <div id="drop-zone" class="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-brand-500 dark:hover:border-brand-500 rounded-xl p-4 text-center cursor-pointer transition-colors flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-900/10">
+                    <i data-lucide="image" class="w-8 h-8 text-slate-400 mb-2"></i>
+                    <span class="text-[11px] text-slate-500">Drag & drop evidence photos, or <span class="text-brand-500 font-semibold">Browse</span></span>
+                    <input type="file" id="log-photos-input" multiple accept="image/*" class="hidden" onchange="handlePhotoSelect(event)">
+                  </div>
+                  <!-- Thumbnails Preview -->
+                  <div class="grid grid-cols-4 gap-2 mt-3" id="photo-preview-grid"></div>
+                </div>
+
+                <button type="submit" 
+                  class="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-semibold rounded-xl text-xs shadow-md shadow-emerald-500/10 transition-all flex items-center justify-center gap-1">
+                  <i data-lucide="check" class="w-4 h-4"></i> Submit Work Log
+                </button>
+              </form>
+            </div>
+
+            <!-- Feed of Completed Log Entries -->
+            <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shadow-md p-6 rounded-2xl lg:col-span-2 flex flex-col h-[580px]">
+              <h3 class="font-bold text-slate-900 dark:text-white font-outfit border-b border-slate-100 dark:border-slate-700 pb-3 flex justify-between items-center">
+                <span>Recent Work Logs Feed</span>
+                <span class="text-xs text-slate-400" id="logs-count">0 Entries</span>
+              </h3>
+              <div class="flex-grow overflow-y-auto space-y-4 pt-4 pr-1" id="logs-feed-container">
+                <!-- Log feed list -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= PANEL: REPORTS & ARCHIVE ================= -->
+        <div id="panel-reports" class="panel-view fade-in space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 class="text-2xl font-bold font-outfit dark:text-white">Reports & Archive</h2>
+              <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Export, search and filter historical task archives</p>
+            </div>
+            <!-- Actions -->
+            <div class="flex gap-2">
+              <button onclick="exportReport('pdf')" class="flex items-center gap-1.5 px-3.5 py-2 bg-red-500/10 hover:bg-red-500/25 border border-red-500/20 text-red-600 dark:text-red-400 rounded-xl text-xs font-semibold transition-all">
+                <i data-lucide="file-text" class="w-4 h-4"></i> Export PDF
+              </button>
+              <button onclick="exportReport('excel')" class="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-semibold transition-all">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Export Excel (CSV)
+              </button>
+            </div>
+          </div>
+
+          <!-- Archive Filters Panel -->
+          <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 p-5 rounded-2xl shadow-sm space-y-4">
+            <h3 class="font-bold text-sm text-slate-900 dark:text-white font-outfit">Archive Advanced Filter</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <!-- Start Date -->
+              <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Start Date</label>
+                <input type="date" id="archive-filter-start" class="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs dark:text-white">
+              </div>
+              <!-- End Date -->
+              <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">End Date</label>
+                <input type="date" id="archive-filter-end" class="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs dark:text-white">
+              </div>
+              <!-- Category -->
+              <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Category</label>
+                <select id="archive-filter-cat" class="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs dark:text-white">
+                  <option value="all">All Categories</option>
+                  <option value="Field Visit">Field Visit</option>
+                  <option value="Community Survey">Community Survey</option>
+                  <option value="Admin Work">Admin Work</option>
+                  <option value="Fundraising">Fundraising</option>
+                  <option value="Health Camp">Health Camp</option>
+                  <option value="Training">Training</option>
+                </select>
+              </div>
+              <!-- Search query -->
+              <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Search Keywords</label>
+                <input type="text" id="archive-filter-query" placeholder="Type task or notes..." class="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs dark:text-white">
+              </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+              <button onclick="resetArchiveFilters()" class="text-xs text-slate-400 hover:text-slate-600 py-1.5 px-3">Clear</button>
+              <button onclick="applyArchiveFilters()" class="px-4 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold shadow-md shadow-brand-500/10">Apply Filters</button>
+            </div>
+          </div>
+
+          <!-- Archive Report Content Box (Used for CSV export as well) -->
+          <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-3xl shadow-sm p-6 overflow-hidden print-container">
+            <h3 class="font-bold text-lg text-slate-950 dark:text-white font-outfit mb-4">NGO Performance & Completed Tasks Archive</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-400 font-bold uppercase tracking-wider">
+                    <th class="pb-3 pr-2">Date</th>
+                    <th class="pb-3 pr-2">Task Title</th>
+                    <th class="pb-3 pr-2">Category</th>
+                    <th class="pb-3 pr-2">Outcome</th>
+                    <th class="pb-3 pr-2">GPS Location</th>
+                    <th class="pb-3 text-right">Photo Evidence</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60 text-slate-600 dark:text-slate-300" id="archive-table-body">
+                  <!-- Archive rows populated dynamically -->
+                </tbody>
+              </table>
+              <div id="archive-empty-text" class="text-center py-10 text-slate-400 hidden">No archived tasks found matching the criteria.</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ================= PANEL: ADMIN PANEL ================= -->
+        <div id="panel-admin-panel" class="panel-view fade-in space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 class="text-2xl font-bold font-outfit dark:text-white flex items-center gap-2"><i data-lucide="shield" class="w-6 h-6 text-emerald-500"></i> Admin Panel</h2>
+              <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Monitor organization activities, staff efficiency, and task logs</p>
+            </div>
+          </div>
+
+          <!-- Organization Wide Metrics -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 p-4 rounded-2xl shadow-sm">
+              <span class="text-xs text-slate-400 uppercase tracking-wider block font-bold">Total Staff Users</span>
+              <span class="text-2xl font-black font-outfit mt-1 dark:text-white" id="admin-total-staff">3</span>
+            </div>
+            <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 p-4 rounded-2xl shadow-sm">
+              <span class="text-xs text-slate-400 uppercase tracking-wider block font-bold">Org Total Tasks</span>
+              <span class="text-2xl font-black font-outfit mt-1 dark:text-white" id="admin-org-tasks">6</span>
+            </div>
+            <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 p-4 rounded-2xl shadow-sm">
+              <span class="text-xs text-slate-400 uppercase tracking-wider block font-bold">Total Photos Uploaded</span>
+              <span class="text-2xl font-black font-outfit mt-1 dark:text-white" id="admin-total-photos">2</span>
+            </div>
+            <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 p-4 rounded-2xl shadow-sm">
+              <span class="text-xs text-slate-400 uppercase tracking-wider block font-bold">GPS Visits Conducted</span>
+              <span class="text-2xl font-black font-outfit mt-1 dark:text-white" id="admin-total-gps">3</span>
+            </div>
+          </div>
+
+          <!-- Staff Table -->
+          <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-3xl shadow-sm p-6">
+            <h3 class="font-bold text-base text-slate-950 dark:text-white font-outfit mb-4">NGO Staff Users Management</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-400 font-bold uppercase tracking-wider">
+                    <th class="pb-3">Staff Name</th>
+                    <th class="pb-3">Email</th>
+                    <th class="pb-3">Role</th>
+                    <th class="pb-3">Tasks Completed</th>
+                    <th class="pb-3">Punch Status</th>
+                    <th class="pb-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60 text-slate-600 dark:text-slate-300" id="admin-staff-table-body">
+                  <!-- User rows injected here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+
+  <!-- ================= MODALS & OVERLAYS ================= -->
+
+  <!-- Modal: Create/Edit Task -->
+  <div id="task-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all duration-300">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200/60 dark:border-slate-700/60 transform transition-all scale-95 duration-200" id="task-modal-box">
+      <!-- Header -->
+      <div class="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700/60 flex justify-between items-center">
+        <h3 class="font-bold text-base text-slate-950 dark:text-white font-outfit" id="task-modal-title">Create New Task</h3>
+        <button onclick="closeTaskModal()" class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <!-- Form Body -->
+      <form id="task-form" onsubmit="saveTask(event)" class="p-6 space-y-4 max-h-[500px] overflow-y-auto">
+        <input type="hidden" id="task-modal-id">
+        
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Task Title</label>
+          <input type="text" id="task-title" required placeholder="e.g. Conduct village health screening" 
+            class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs dark:text-white">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Description</label>
+          <textarea id="task-desc" rows="2.5" placeholder="Include goals, context, or checklist..." 
+            class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs dark:text-white"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Category</label>
+            <select id="task-category" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs dark:text-white">
+              <option value="Field Visit">Field Visit</option>
+              <option value="Community Survey">Community Survey</option>
+              <option value="Admin Work">Admin Work</option>
+              <option value="Fundraising">Fundraising</option>
+              <option value="Health Camp">Health Camp</option>
+              <option value="Training">Training</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Priority Level</label>
+            <select id="task-priority" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs dark:text-white">
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Due Date</label>
+            <input type="date" id="task-due-date" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs dark:text-white">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Due Time</label>
+            <input type="time" id="task-due-time" required class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs dark:text-white">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Reminder Setting</label>
+            <select id="task-reminder-offset" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs dark:text-white">
+              <option value="5">5 minutes before</option>
+              <option value="15">15 minutes before</option>
+              <option value="30">30 minutes before</option>
+              <option value="60" selected>1 hour before</option>
+              <option value="custom">Custom Reminder</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Task Location</label>
+            <input type="text" id="task-location" placeholder="e.g. Community Center A" 
+              class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs dark:text-white">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Additional Notes</label>
+          <input type="text" id="task-notes" placeholder="Contact person, phone number, etc." 
+            class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-xs dark:text-white">
+        </div>
+
+        <!-- Submit Button -->
+        <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
+          <button type="button" onclick="closeTaskModal()" class="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700">Cancel</button>
+          <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-brand-500/10">Save Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Lightbox Gallery Modal -->
+  <div id="lightbox-modal" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+    <button onclick="closeLightbox()" class="absolute top-4 right-4 p-2 text-white bg-white/10 hover:bg-white/25 rounded-full">
+      <i data-lucide="x" class="w-6 h-6"></i>
+    </button>
+    <div class="max-w-4xl max-h-full flex flex-col items-center">
+      <img id="lightbox-img" src="" alt="Lightbox image" class="max-w-full max-h-[80vh] rounded-lg shadow-2xl object-contain">
+      <div class="mt-4 flex gap-4">
+        <a id="lightbox-download" href="" download class="px-4 py-2 bg-brand-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1">
+          <i data-lucide="download" class="w-4 h-4"></i> Download Image
+        </a>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ================= SCRIPTS & SYSTEM CORE ================= -->
+  <script>
+    // --- Mock State & DB Controllers ---
+    let currentUser = null;
+    let attendanceActive = false;
+    let attendanceInterval = null;
+    let attendanceTime = 0; // seconds
+    let lastCheckinTime = null;
+    let gpsCoords = null;
+    let uploadedLogPhotos = []; // Base64 strings loaded during worklog session
+
+    // Default Demo Data structure
+    const defaultData = {
+      users: [
+        { name: 'John Doe', email: 'staff@ngo.org', password: 'password', role: 'staff', tasksCompleted: 4, punchStatus: 'PUNCHED_OUT' },
+        { name: 'Sarah Connor', email: 'admin@ngo.org', password: 'password', role: 'admin', tasksCompleted: 8, punchStatus: 'PUNCHED_IN' },
+        { name: 'Jane Foster', email: 'jane@ngo.org', password: 'password', role: 'staff', tasksCompleted: 2, punchStatus: 'PUNCHED_OUT' }
+      ],
+      tasks: [
+        { id: 't-1', title: 'Distribute health booklets', desc: 'Distribute basic hygiene packets and child care information flyers to villagers.', category: 'Field Visit', priority: 'High', dueDate: '2026-06-07', dueTime: '18:30', reminder: '60', location: 'Village Hall A', notes: 'Partner with local nurses', status: 'Pending', staff: 'staff@ngo.org' },
+        { id: 't-2', title: 'Community Water Audit', desc: 'Check filtration plant outputs and speak with clean water distribution workers.', category: 'Community Survey', priority: 'Medium', dueDate: '2026-06-08', dueTime: '11:00', reminder: '15', location: 'North Block Tube', notes: 'Report any arsenic reports', status: 'Pending', staff: 'staff@ngo.org' },
+        { id: 't-3', title: 'Submit monthly financial tally', desc: 'Scan and review invoice sheets from training workshop.', category: 'Admin Work', priority: 'Low', dueDate: '2026-06-10', dueTime: '15:00', reminder: '30', location: 'Office Desk 2', notes: 'Send copy to head office', status: 'In Progress', staff: 'staff@ngo.org' },
+        { id: 't-4', title: 'Sponsor Call Session', desc: 'Direct outreach to major donors to coordinate upcoming annual benefit details.', category: 'Fundraising', priority: 'High', dueDate: '2026-06-06', dueTime: '16:00', reminder: '5', location: 'Skype/Phone Call', notes: 'Focus on medical supplies donors', status: 'Overdue', staff: 'staff@ngo.org' },
+        { id: 't-5', title: 'Inoculation camp logistics', desc: 'Coordinate safe cold chain transport for vaccines.', category: 'Health Camp', priority: 'High', dueDate: '2026-06-07', dueTime: '10:00', reminder: '60', location: 'District Clinic', notes: 'Maintain correct temperature log', status: 'Completed', staff: 'staff@ngo.org' }
+      ],
+      logs: [
+        { id: 'l-1', taskName: 'Inoculation camp logistics', date: '2026-06-07', completionTime: '10:15 AM', remarks: 'Vaccine vials safely loaded in ice-chests. Transport was on schedule.', observations: 'Warm weather means ice levels should be doubled next week.', outcome: '60 children fully vaccinated', photos: [], staff: 'staff@ngo.org', gps: '28.6139, 77.2090' }
+      ],
+      notifications: [
+        { id: 'n-1', message: "Task 'Sponsor Call Session' is overdue!", timestamp: new Date(Date.now() - 3600000).toLocaleString() },
+        { id: 'n-2', message: "Attendance registered: Punched In successfully", timestamp: new Date(Date.now() - 7200000).toLocaleString() }
+      ]
+    };
+
+    // Initialize Database
+    function getDB() {
+      const data = localStorage.getItem('ngo_work_tracker_db');
+      if (!data) {
+        localStorage.setItem('ngo_work_tracker_db', JSON.stringify(defaultData));
+        return defaultData;
+      }
+      return JSON.parse(data);
+    }
+
+    function setDB(db) {
+      localStorage.setItem('ngo_work_tracker_db', JSON.stringify(db));
+    }
+
+    // --- IndexedDB for Photos Storage ---
+    let dbInstance;
+    const request = indexedDB.open("ngo_photos_database", 1);
+    request.onupgradeneeded = function(e) {
+      dbInstance = e.target.result;
+      if (!dbInstance.objectStoreNames.contains("photos")) {
+        dbInstance.createObjectStore("photos", { keyPath: "id", autoIncrement: true });
+      }
+    };
+    request.onsuccess = function(e) {
+      dbInstance = e.target.result;
+      // Load current workspace logs
+      initApp();
+    };
+
+    function savePhotoToDB(logId, base64Data, callback) {
+      const transaction = dbInstance.transaction(["photos"], "readwrite");
+      const store = transaction.objectStore("photos");
+      const request = store.add({ logId: logId, data: base64Data });
+      request.onsuccess = () => callback();
+    }
+
+    function fetchPhotosFromDB(logId, callback) {
+      const transaction = dbInstance.transaction(["photos"], "readonly");
+      const store = transaction.objectStore("photos");
+      const list = [];
+      store.openCursor().onsuccess = function(event) {
+        const cursor = event.target.result;
+        if (cursor) {
+          if (cursor.value.logId === logId) {
+            list.push(cursor.value.data);
+          }
+          cursor.continue();
+        } else {
+          callback(list);
+        }
+      };
+    }
+
+    // --- Authentication module ---
+    function initApp() {
+      // Setup browser notifications permissions
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+
+      // Check current session
+      const loggedUser = sessionStorage.getItem('current_user');
+      if (loggedUser) {
+        currentUser = JSON.parse(loggedUser);
+        showDashboardPanel();
+      } else {
+        showLoginPanel();
+      }
+      lucide.createIcons();
+    }
+
+    function quickLogin(role) {
+      const email = role === 'admin' ? 'admin@ngo.org' : 'staff@ngo.org';
+      const db = getDB();
+      const user = db.users.find(u => u.email === email);
+      if (user) {
+        sessionStorage.setItem('current_user', JSON.stringify(user));
+        currentUser = user;
+        showDashboardPanel();
+      }
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const pass = document.getElementById('login-password').value;
+      const db = getDB();
+      const user = db.users.find(u => u.email === email && u.password === pass);
+      if (user) {
+        sessionStorage.setItem('current_user', JSON.stringify(user));
+        currentUser = user;
+        showDashboardPanel();
+      } else {
+        alert("Invalid login credentials.");
+      }
+    }
+
+    function handleRegister(e) {
+      e.preventDefault();
+      const name = document.getElementById('reg-name').value;
+      const email = document.getElementById('reg-email').value;
+      const password = document.getElementById('reg-password').value;
+      const role = document.getElementById('reg-role').value;
+
+      const db = getDB();
+      if (db.users.find(u => u.email === email)) {
+        alert("User already exists!");
+        return;
+      }
+      db.users.push({ name, email, password, role, tasksCompleted: 0, punchStatus: 'PUNCHED_OUT' });
+      setDB(db);
+      alert("Registration successful! Please login.");
+      showLogin();
+    }
+
+    function handleForgotPasswordSubmit(e) {
+      e.preventDefault();
+      const email = document.getElementById('forgot-email').value;
+      alert(`Simulation: Reset password link sent successfully to ${email}.`);
+      showLogin();
+    }
+
+    function showLoginPanel() {
+      document.getElementById('auth-container').classList.remove('hidden');
+      document.getElementById('app-container').classList.add('hidden');
+    }
+
+    function showDashboardPanel() {
+      document.getElementById('auth-container').classList.add('hidden');
+      document.getElementById('app-container').classList.remove('hidden');
+      
+      // Setup header stats and side profile
+      document.getElementById('user-name').innerText = currentUser.name;
+      document.getElementById('user-avatar').innerText = currentUser.name.split(' ').map(n => n[0]).join('');
+      document.getElementById('user-role-badge').innerText = currentUser.role === 'admin' ? 'Administrator' : 'Staff Member';
+      document.getElementById('dashboard-welcome').innerText = `Welcome back, ${currentUser.name.split(' ')[0]}!`;
+
+      if (currentUser.role === 'admin') {
+        document.getElementById('nav-admin-panel').classList.remove('hidden');
+      } else {
+        document.getElementById('nav-admin-panel').classList.add('hidden');
+      }
+
+      // Load UI Components
+      switchPanel('dashboard');
+      refreshAllData();
+    }
+
+    function handleLogout() {
+      sessionStorage.removeItem('current_user');
+      currentUser = null;
+      if (attendanceInterval) {
+        clearInterval(attendanceInterval);
+        attendanceInterval = null;
+      }
+      attendanceActive = false;
+      document.getElementById('attendance-btn').innerText = "Punch In";
+      document.getElementById('attendance-timer').innerText = "00:00:00";
+      showLoginPanel();
+    }
+
+    function showRegister() {
+      document.getElementById('login-form-panel').classList.add('hidden');
+      document.getElementById('forgot-password-panel').classList.add('hidden');
+      document.getElementById('register-form-panel').classList.remove('hidden');
+    }
+
+    function showLogin() {
+      document.getElementById('login-form-panel').classList.remove('hidden');
+      document.getElementById('register-form-panel').classList.add('hidden');
+      document.getElementById('forgot-password-panel').classList.add('hidden');
+    }
+
+    function showForgotPassword() {
+      document.getElementById('login-form-panel').classList.add('hidden');
+      document.getElementById('forgot-password-panel').classList.remove('hidden');
+    }
+
+    // --- Sidebar Navigation Controller ---
+    function switchPanel(panelId) {
+      document.querySelectorAll('.panel-view').forEach(panel => {
+        panel.classList.add('hidden');
+      });
+      document.getElementById(`panel-${panelId}`).classList.remove('hidden');
+
+      // Highlight active nav item
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('bg-brand-500', 'text-white', 'shadow-md', 'shadow-brand-500/15');
+        btn.classList.add('text-slate-600', 'dark:text-slate-300', 'hover:bg-slate-50', 'dark:hover:bg-slate-700/30');
+      });
+
+      const activeBtn = document.getElementById(`nav-${panelId}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('text-slate-600', 'dark:text-slate-300', 'hover:bg-slate-50', 'dark:hover:bg-slate-700/30');
+        activeBtn.classList.add('bg-brand-500', 'text-white', 'shadow-md', 'shadow-brand-500/15');
+      }
+
+      // Perform panel specific refreshes
+      if (panelId === 'dashboard') {
+        renderDashboardCharts();
+      } else if (panelId === 'calendar-view') {
+        renderCalendar();
+      } else if (panelId === 'reports') {
+        renderArchiveTable();
+      } else if (panelId === 'admin-panel') {
+        renderAdminDashboard();
+      }
+
+      // Hide sidebar on mobile after clicking
+      if (window.innerWidth < 768) {
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+      }
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar.classList.contains('-translate-x-full')) {
+        sidebar.classList.remove('-translate-x-full');
+      } else {
+        sidebar.classList.add('-translate-x-full');
+      }
+    }
+
+    // --- Dark Mode Controller ---
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        document.getElementById('moon-icon').classList.remove('hidden');
+        document.getElementById('sun-icon').classList.add('hidden');
+      } else {
+        html.classList.add('dark');
+        document.getElementById('moon-icon').classList.add('hidden');
+        document.getElementById('sun-icon').classList.remove('hidden');
+      }
+    }
+
+    // --- Global Search Bar ---
+    function handleGlobalSearch(e) {
+      const val = e.target.value.toLowerCase();
+      if (e.key === 'Enter') {
+        switchPanel('task-manager');
+        const db = getDB();
+        const cardsGrid = document.getElementById('tasks-cards-grid');
+        cardsGrid.innerHTML = '';
+        
+        const filtered = db.tasks.filter(t => 
+          (currentUser.role === 'admin' || t.staff === currentUser.email) &&
+          (t.title.toLowerCase().includes(val) || 
+           t.category.toLowerCase().includes(val) || 
+           (t.notes && t.notes.toLowerCase().includes(val)) ||
+           t.priority.toLowerCase().includes(val))
+        );
+        
+        renderTaskCards(filtered);
+      }
+    }
+
+    // --- Attendance and Punch In/Out module ---
+    function toggleAttendance() {
+      const btn = document.getElementById('attendance-btn');
+      const timerDisplay = document.getElementById('attendance-timer');
+      
+      if (!attendanceActive) {
+        // Punch In
+        attendanceActive = true;
+        btn.innerText = "Punch Out";
+        btn.classList.replace('bg-brand-600', 'bg-red-600');
+        btn.classList.replace('hover:bg-brand-700', 'hover:bg-red-700');
+        lastCheckinTime = new Date().toLocaleTimeString();
+        
+        // Notification
+        addInAppNotification("You have punched in successfully.");
+        triggerBrowserNotification("Punch In", "You have successfully punched in today!");
+        
+        attendanceInterval = setInterval(() => {
+          attendanceTime++;
+          const hrs = Math.floor(attendanceTime / 3600).toString().padStart(2, '0');
+          const mins = Math.floor((attendanceTime % 3600) / 60).toString().padStart(2, '0');
+          const secs = (attendanceTime % 60).toString().padStart(2, '0');
+          timerDisplay.innerText = `${hrs}:${mins}:${secs}`;
+        }, 1000);
+      } else {
+        // Punch Out
+        clearInterval(attendanceInterval);
+        attendanceActive = false;
+        btn.innerText = "Punch In";
+        btn.classList.replace('bg-red-600', 'bg-brand-600');
+        btn.classList.replace('hover:bg-red-700', 'hover:bg-brand-700');
+        
+        addInAppNotification(`You checked out. Total session time: ${timerDisplay.innerText}`);
+        triggerBrowserNotification("Punch Out", `Successful logout. Worked for ${timerDisplay.innerText}`);
+        attendanceTime = 0;
+        timerDisplay.innerText = "00:00:00";
+      }
+    }
+
+    // --- Simulated GPS Visited Module ---
+    function triggerGPSCheckin() {
+      const statusDisplay = document.getElementById('gps-status');
+      statusDisplay.innerText = "Locating...";
+      
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            gpsCoords = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+            statusDisplay.innerText = `Checked: ${gpsCoords}`;
+            addInAppNotification(`GPS Checkin Registered at ${gpsCoords}`);
+          },
+          (err) => {
+            // Simulated GPS coordinates fallback
+            const randomLat = (12.9716 + (Math.random() - 0.5) * 0.05).toFixed(4);
+            const randomLng = (77.5946 + (Math.random() - 0.5) * 0.05).toFixed(4);
+            gpsCoords = `${randomLat}, ${randomLng}`;
+            statusDisplay.innerText = `Mock GPS: ${gpsCoords}`;
+            addInAppNotification(`GPS Checkin (Simulated) registered at ${gpsCoords}`);
+          }
+        );
+      } else {
+        statusDisplay.innerText = "GPS Not Supported";
+      }
+    }
+
+    // --- Smart Notifications Systems ---
+    function addInAppNotification(message) {
+      const db = getDB();
+      const notif = {
+        id: 'n-' + Date.now(),
+        message: message,
+        timestamp: new Date().toLocaleString()
+      };
+      db.notifications.unshift(notif);
+      setDB(db);
+      refreshNotifications();
+    }
+
+    function triggerBrowserNotification(title, text) {
+      if (Notification.permission === 'granted') {
+        new Notification(title, { body: text });
+      }
+    }
+
+    function refreshNotifications() {
+      const db = getDB();
+      const container = document.getElementById('notification-list');
+      const badge = document.getElementById('notification-badge');
+      
+      if (db.notifications.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">No notifications yet.</p>`;
+        badge.classList.add('hidden');
+      } else {
+        badge.classList.remove('hidden');
+        container.innerHTML = db.notifications.slice(0, 5).map(n => `
+          <div class="p-2.5 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-100 dark:border-slate-800 text-xs">
+            <p class="font-medium text-slate-800 dark:text-slate-200">${n.message}</p>
+            <span class="text-[10px] text-slate-400 mt-1 block">${n.timestamp}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    function toggleNotificationCenter() {
+      const center = document.getElementById('notification-center');
+      center.classList.toggle('hidden');
+    }
+
+    function clearNotifications() {
+      const db = getDB();
+      db.notifications = [];
+      setDB(db);
+      refreshNotifications();
+    }
+
+    // --- AI generated summary generator logic ---
+    function generateAIDailySummary() {
+      const db = getDB();
+      const userTasks = db.tasks.filter(t => t.staff === currentUser.email);
+      const completedToday = userTasks.filter(t => t.status === 'Completed').length;
+      const totalVisits = db.logs.filter(l => l.staff === currentUser.email && l.gps).length;
+      
+      // Calculate photo uploads
+      let photoCount = 0;
+      const checkPhotosCount = (callback) => {
+        let count = 0;
+        let logsRead = 0;
+        if (db.logs.length === 0) return callback(0);
+        db.logs.forEach(log => {
+          fetchPhotosFromDB(log.id, (photos) => {
+            count += photos.length;
+            logsRead++;
+            if (logsRead === db.logs.length) {
+              callback(count);
+            }
+          });
+        });
+      };
+
+      checkPhotosCount((photoCount) => {
+        const summary = `Today you have completed ${completedToday} task${completedToday === 1 ? '' : 's'}. You conducted ${totalVisits} field/community visit${totalVisits === 1 ? '' : 's'} with GPS logs, and uploaded ${photoCount} evidence photo${photoCount === 1 ? '' : 's'}. Make sure to complete your pending task checklist before logging out!`;
+        document.getElementById('ai-daily-summary-text').innerText = `"${summary}"`;
+      });
+    }
+
+    // --- Global Refresh Helper ---
+    function refreshAllData() {
+      const db = getDB();
+      
+      // Filter tasks by currently logged-in user (admins see all)
+      const myTasks = db.tasks.filter(t => currentUser.role === 'admin' || t.staff === currentUser.email);
+      
+      // Stats counts
+      const total = myTasks.length;
+      const pending = myTasks.filter(t => t.status === 'Pending' || t.status === 'In Progress').length;
+      const completed = myTasks.filter(t => t.status === 'Completed').length;
+      const high = myTasks.filter(t => t.priority === 'High' && t.status !== 'Completed').length;
+
+      document.getElementById('stat-total-tasks').innerText = total;
+      document.getElementById('stat-pending-tasks').innerText = pending;
+      document.getElementById('stat-completed-tasks').innerText = completed;
+      document.getElementById('stat-high-tasks').innerText = high;
+
+      // Dashboard tasks list
+      const todayTasks = myTasks.filter(t => t.status !== 'Completed');
+      document.getElementById('today-tasks-count').innerText = `${todayTasks.length} Remaining`;
+      
+      const dashList = document.getElementById('dashboard-tasks-list');
+      if (todayTasks.length === 0) {
+        dashList.innerHTML = `<p class="text-xs text-slate-400 text-center py-10">No tasks pending for today. Excellent job!</p>`;
+      } else {
+        dashList.innerHTML = todayTasks.slice(0, 5).map(t => `
+          <div class="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl flex items-center justify-between hover:border-brand-500/20 transition-all">
+            <div class="flex items-center gap-3">
+              <button onclick="quickCompleteTask('${t.id}')" class="p-1 border border-slate-200 dark:border-slate-700 hover:bg-emerald-500/10 hover:border-emerald-500/50 rounded-lg text-slate-400 hover:text-emerald-500 transition-colors">
+                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+              </button>
+              <div>
+                <h4 class="text-xs font-semibold text-slate-900 dark:text-white">${t.title}</h4>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-[9px] uppercase tracking-wider font-semibold text-slate-400">${t.category}</span>
+                  <span class="text-[9px] font-bold ${t.priority === 'High' ? 'text-red-500' : t.priority === 'Medium' ? 'text-amber-500' : 'text-blue-500'}">${t.priority}</span>
+                </div>
+              </div>
+            </div>
+            <span class="text-[10px] text-slate-400 font-medium">${t.dueDate} @ ${t.dueTime}</span>
+          </div>
+        `).join('');
+      }
+
+      // Populate Daily Work Log selection dropdown
+      const logSelect = document.getElementById('log-task-select');
+      const incompleteTasks = myTasks.filter(t => t.status !== 'Completed');
+      logSelect.innerHTML = `<option value="" disabled selected>Choose a pending task...</option>` + 
+        incompleteTasks.map(t => `<option value="${t.id}">${t.title} (${t.category})</option>`).join('');
+
+      // Render logs feed
+      renderLogsFeed();
+
+      // Render Admin settings
+      if (currentUser.role === 'admin') {
+        renderAdminDashboard();
+      }
+
+      // AI generated daily text
+      generateAIDailySummary();
+
+      // Refresh alerts
+      refreshNotifications();
+
+      // Setup task management tab cards
+      filterTasks();
+
+      // Re-trigger icon load
+      setTimeout(() => {
+        lucide.createIcons();
+      }, 50);
+    }
+
+    // --- Task CRUD & Manager Modules ---
+    let activeTaskFilters = { category: 'all', priority: 'all', status: 'all' };
+
+    function filterTasks() {
+      activeTaskFilters.category = document.getElementById('task-filter-category').value;
+      activeTaskFilters.priority = document.getElementById('task-filter-priority').value;
+      activeTaskFilters.status = document.getElementById('task-filter-status').value;
+
+      const db = getDB();
+      const myTasks = db.tasks.filter(t => currentUser.role === 'admin' || t.staff === currentUser.email);
+      
+      const filtered = myTasks.filter(t => {
+        const catMatch = activeTaskFilters.category === 'all' || t.category === activeTaskFilters.category;
+        const priMatch = activeTaskFilters.priority === 'all' || t.priority === activeTaskFilters.priority;
+        const statMatch = activeTaskFilters.status === 'all' || t.status === activeTaskFilters.status;
+        return catMatch && priMatch && statMatch;
+      });
+
+      renderTaskCards(filtered);
+    }
+
+    function resetTaskFilters() {
+      document.getElementById('task-filter-category').value = 'all';
+      document.getElementById('task-filter-priority').value = 'all';
+      document.getElementById('task-filter-status').value = 'all';
+      filterTasks();
+    }
+
+    function renderTaskCards(tasksList) {
+      const cardsGrid = document.getElementById('tasks-cards-grid');
+      cardsGrid.innerHTML = '';
+
+      if (tasksList.length === 0) {
+        cardsGrid.innerHTML = `
+          <div class="col-span-full text-center py-20 bg-white dark:bg-slate-800 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700">
+            <p class="text-sm text-slate-400">No tasks fit your criteria. Click 'Create Task' to start fresh.</p>
+          </div>
+        `;
+        return;
+      }
+
+      cardsGrid.innerHTML = tasksList.map(t => {
+        let statusColor = "bg-amber-500/10 text-amber-600 dark:text-amber-500";
+        if (t.status === 'Completed') statusColor = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
+        if (t.status === 'In Progress') statusColor = "bg-blue-500/10 text-blue-600 dark:text-blue-400";
+        if (t.status === 'Overdue') statusColor = "bg-red-500/10 text-red-600 dark:text-red-400";
+
+        const priorityColor = t.priority === 'High' ? 'text-red-500 font-semibold' : t.priority === 'Medium' ? 'text-amber-500 font-semibold' : 'text-blue-500';
+
+        return `
+          <div class="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl p-5 hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start mb-2">
+                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400">${t.category}</span>
+                <span class="inline-flex px-2.5 py-0.5 rounded-full text-[9px] font-semibold ${statusColor}">${t.status}</span>
+              </div>
+              <h3 class="font-bold text-sm text-slate-950 dark:text-white">${t.title}</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2">${t.desc || 'No description provided.'}</p>
+              
+              <div class="mt-4 space-y-1.5 border-t border-slate-50 dark:border-slate-700/40 pt-3">
+                <div class="flex items-center gap-2 text-[10px] text-slate-400">
+                  <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                  <span>Due: ${t.dueDate} @ ${t.dueTime}</span>
+                </div>
+                <div class="flex items-center gap-2 text-[10px] text-slate-400">
+                  <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                  <span>Location: ${t.location || 'Not Specified'}</span>
+                </div>
+                <div class="flex items-center gap-2 text-[10px] text-slate-400">
+                  <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
+                  <span>Priority: <span class="${priorityColor}">${t.priority}</span></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Actions buttons -->
+            <div class="mt-5 pt-3 border-t border-slate-50 dark:border-slate-700/40 flex justify-between gap-2">
+              <button onclick="quickCompleteTask('${t.id}')" ${t.status === 'Completed' ? 'disabled' : ''} 
+                class="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-30 disabled:hover:bg-emerald-500 text-white font-semibold rounded-lg text-[10px] flex items-center gap-1 transition-all">
+                <i data-lucide="check" class="w-3 h-3"></i> Finish
+              </button>
+              <div class="flex gap-1">
+                <button onclick="editTask('${t.id}')" class="p-1 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-slate-500 hover:text-brand-500 transition-colors">
+                  <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                </button>
+                <button onclick="deleteTask('${t.id}')" class="p-1 border border-slate-200 dark:border-slate-700 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg text-slate-500 hover:text-red-600 transition-colors">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function openTaskModal(taskId = null) {
+      document.getElementById('task-modal').classList.remove('hidden');
+      const box = document.getElementById('task-modal-box');
+      setTimeout(() => box.classList.replace('scale-95', 'scale-100'), 50);
+      
+      const form = document.getElementById('task-form');
+      form.reset();
+      
+      if (taskId) {
+        document.getElementById('task-modal-title').innerText = "Edit Existing Task";
+        const db = getDB();
+        const t = db.tasks.find(x => x.id === taskId);
+        
+        document.getElementById('task-modal-id').value = t.id;
+        document.getElementById('task-title').value = t.title;
+        document.getElementById('task-desc').value = t.desc;
+        document.getElementById('task-category').value = t.category;
+        document.getElementById('task-priority').value = t.priority;
+        document.getElementById('task-due-date').value = t.dueDate;
+        document.getElementById('task-due-time').value = t.dueTime;
+        document.getElementById('task-reminder-offset').value = t.reminder;
+        document.getElementById('task-location').value = t.location;
+        document.getElementById('task-notes').value = t.notes;
+      } else {
+        document.getElementById('task-modal-title').innerText = "Create New Task";
+        document.getElementById('task-modal-id').value = '';
+      }
+    }
+
+    function closeTaskModal() {
+      const box = document.getElementById('task-modal-box');
+      box.classList.replace('scale-100', 'scale-95');
+      setTimeout(() => document.getElementById('task-modal').classList.add('hidden'), 150);
+    }
+
+    function saveTask(e) {
+      e.preventDefault();
+      const id = document.getElementById('task-modal-id').value;
+      const title = document.getElementById('task-title').value;
+      const desc = document.getElementById('task-desc').value;
+      const category = document.getElementById('task-category').value;
+      const priority = document.getElementById('task-priority').value;
+      const dueDate = document.getElementById('task-due-date').value;
+      const dueTime = document.getElementById('task-due-time').value;
+      const reminder = document.getElementById('task-reminder-offset').value;
+      const location = document.getElementById('task-location').value;
+      const notes = document.getElementById('task-notes').value;
+
+      const db = getDB();
+
+      if (id) {
+        // Edit
+        const idx = db.tasks.findIndex(t => t.id === id);
+        db.tasks[idx] = { ...db.tasks[idx], title, desc, category, priority, dueDate, dueTime, reminder, location, notes };
+        addInAppNotification(`Task updated: ${title}`);
+      } else {
+        // Create
+        const newTask = {
+          id: 't-' + Date.now(),
+          title, desc, category, priority, dueDate, dueTime, reminder, location, notes,
+          status: 'Pending',
+          staff: currentUser.email
+        };
+        db.tasks.push(newTask);
+        addInAppNotification(`New task created: ${title}`);
+        
+        // Smart simulated reminder schedule setup
+        const triggerTimeStr = new Date(`${dueDate}T${dueTime}`);
+        const alertDelay = triggerTimeStr - Date.now() - (parseInt(reminder) * 60000);
+        if (alertDelay > 0) {
+          setTimeout(() => {
+            triggerBrowserNotification("NGO Task Alert", `Task "${title}" starts in ${reminder} minutes!`);
+            addInAppNotification(`Reminder: "${title}" is upcoming.`);
+          }, alertDelay);
+        }
+      }
+
+      setDB(db);
+      closeTaskModal();
+      refreshAllData();
+    }
+
+    function quickCompleteTask(id) {
+      const db = getDB();
+      const idx = db.tasks.findIndex(t => t.id === id);
+      db.tasks[idx].status = 'Completed';
+      
+      // Auto register completed user stats
+      const userIdx = db.users.findIndex(u => u.email === currentUser.email);
+      if (userIdx !== -1) {
+        db.users[userIdx].tasksCompleted++;
+      }
+
+      // Automatically register a light-weight log entry outline for quickness
+      const completedTask = db.tasks[idx];
+      const logId = 'l-' + Date.now();
+      db.logs.push({
+        id: logId,
+        taskName: completedTask.title,
+        date: new Date().toISOString().split('T')[0],
+        completionTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        remarks: 'Directly checked off task list.',
+        observations: 'No specific local observation logged.',
+        outcome: 'Completed on-time',
+        photos: [],
+        staff: currentUser.email,
+        gps: gpsCoords || '28.6139, 77.2090'
+      });
+
+      setDB(db);
+      addInAppNotification(`Completed task and generated log: "${completedTask.title}"`);
+      refreshAllData();
+    }
+
+    function editTask(id) {
+      openTaskModal(id);
+    }
+
+    function deleteTask(id) {
+      if (confirm("Are you sure you want to delete this task?")) {
+        const db = getDB();
+        db.tasks = db.tasks.filter(t => t.id !== id);
+        setDB(db);
+        addInAppNotification("Task removed.");
+        refreshAllData();
+      }
+    }
+
+    // --- Work Log & Photo Documentation Module ---
+    function handlePhotoSelect(e) {
+      const files = Array.from(e.target.files);
+      const grid = document.getElementById('photo-preview-grid');
+      
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          const base64 = evt.target.result;
+          uploadedLogPhotos.push(base64);
+
+          // Render Preview
+          const div = document.createElement('div');
+          div.className = "relative group aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800";
+          div.innerHTML = `
+            <img src="${base64}" class="w-full h-full object-cover">
+            <button type="button" class="absolute top-1 right-1 p-1 bg-red-500 hover:bg-red-600 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity" 
+              onclick="removeUploadedPhoto('${base64}', this)">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          `;
+          grid.appendChild(div);
+          lucide.createIcons();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function removeUploadedPhoto(base64, btnElement) {
+      uploadedLogPhotos = uploadedLogPhotos.filter(x => x !== base64);
+      btnElement.parentElement.remove();
+    }
+
+    // Drag-and-drop actions
+    const dropZone = document.getElementById('drop-zone');
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-brand-500'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-brand-500'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-brand-500');
+      const files = e.dataTransfer.files;
+      if (files.length) {
+        document.getElementById('log-photos-input').files = files;
+        const fakeEvent = { target: { files: files } };
+        handlePhotoSelect(fakeEvent);
+      }
+    });
+    dropZone.addEventListener('click', () => document.getElementById('log-photos-input').click());
+
+    function submitWorkLog(e) {
+      e.preventDefault();
+      const taskId = document.getElementById('log-task-select').value;
+      const remarks = document.getElementById('log-remarks').value;
+      const observations = document.getElementById('log-observations').value;
+      const outcome = document.getElementById('log-outcome').value;
+
+      if (!taskId) {
+        alert("Please select a task to submit work logs.");
+        return;
+      }
+
+      const db = getDB();
+      const task = db.tasks.find(t => t.id === taskId);
+      
+      // Mark task completed
+      task.status = 'Completed';
+      const userIdx = db.users.findIndex(u => u.email === currentUser.email);
+      if (userIdx !== -1) {
+        db.users[userIdx].tasksCompleted++;
+      }
+
+      // Add log
+      const logId = 'l-' + Date.now();
+      const newLog = {
+        id: logId,
+        taskName: task.title,
+        date: new Date().toISOString().split('T')[0],
+        completionTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        remarks,
+        observations,
+        outcome,
+        photos: [], // will load separately from IndexedDB
+        staff: currentUser.email,
+        gps: gpsCoords || '28.6139, 77.2090' // simulation default if checkin skipped
+      };
+
+      db.logs.push(newLog);
+      setDB(db);
+
+      // Save photos to IndexedDB
+      if (uploadedLogPhotos.length > 0) {
+        let photosSaved = 0;
+        uploadedLogPhotos.forEach(photo => {
+          savePhotoToDB(logId, photo, () => {
+            photosSaved++;
+            if (photosSaved === uploadedLogPhotos.length) {
+              completeLogSubmission();
+            }
+          });
+        });
+      } else {
+        completeLogSubmission();
+      }
+    }
+
+    function completeLogSubmission() {
+      // Clear forms
+      document.getElementById('worklog-form').reset();
+      document.getElementById('photo-preview-grid').innerHTML = '';
+      uploadedLogPhotos = [];
+      
+      addInAppNotification("Daily work log submitted successfully with photo attachments.");
+      refreshAllData();
+    }
+
+    function renderLogsFeed() {
+      const db = getDB();
+      const myLogs = db.logs.filter(l => currentUser.role === 'admin' || l.staff === currentUser.email);
+      document.getElementById('logs-count').innerText = `${myLogs.length} Entries`;
+
+      const feed = document.getElementById('logs-feed-container');
+      if (myLogs.length === 0) {
+        feed.innerHTML = `<p class="text-xs text-slate-400 text-center py-20">No work logs reported yet.</p>`;
+        return;
+      }
+
+      feed.innerHTML = '';
+      // Reverse chronologically
+      myLogs.slice().reverse().forEach(log => {
+        const item = document.createElement('div');
+        item.className = "p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 rounded-2xl flex flex-col space-y-3";
+        
+        item.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div>
+              <h4 class="text-xs font-bold text-slate-950 dark:text-white font-outfit">${log.taskName}</h4>
+              <span class="text-[9px] text-slate-400">By ${log.staff} | ${log.date} @ ${log.completionTime}</span>
+            </div>
+            ${log.gps ? `
+              <span class="inline-flex items-center gap-1 text-[9px] font-semibold text-emerald-500 py-0.5 px-2 bg-emerald-500/10 rounded-full">
+                <i data-lucide="map-pin" class="w-2.5 h-2.5"></i> ${log.gps}
+              </span>
+            ` : ''}
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-[11px] text-slate-500 dark:text-slate-400">
+            <div><span class="font-bold text-slate-700 dark:text-slate-300 block">Remarks:</span> ${log.remarks}</div>
+            <div><span class="font-bold text-slate-700 dark:text-slate-300 block">Observations:</span> ${log.observations || 'N/A'}</div>
+            <div><span class="font-bold text-slate-700 dark:text-slate-300 block">Outcome:</span> ${log.outcome}</div>
+          </div>
+          <!-- Gallery photos segment -->
+          <div class="grid grid-cols-5 gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800" id="feed-photos-${log.id}">
+            <!-- Photos from DB -->
+          </div>
+        `;
+        feed.appendChild(item);
+
+        // Fetch corresponding photos
+        fetchPhotosFromDB(log.id, (photos) => {
+          const gallery = document.getElementById(`feed-photos-${log.id}`);
+          if (photos.length === 0) {
+            gallery.innerHTML = `<p class="text-[9px] text-slate-400 col-span-full italic">No evidence photo submitted.</p>`;
+          } else {
+            gallery.innerHTML = photos.map(photo => `
+              <div class="aspect-square rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 cursor-pointer" onclick="openLightbox('${photo}')">
+                <img src="${photo}" class="w-full h-full object-cover hover:scale-110 transition-transform">
+              </div>
+            `).join('');
+          }
+        });
+      });
+      lucide.createIcons();
+    }
+
+    // --- Lightbox Gallery Controller ---
+    function openLightbox(imgSrc) {
+      if (!imgSrc) return;
+      document.getElementById('lightbox-modal').classList.remove('hidden');
+      document.getElementById('lightbox-img').src = imgSrc;
+      document.getElementById('lightbox-download').href = imgSrc;
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox-modal').classList.add('hidden');
+    }
+
+    // --- Calendar Module ---
+    let currentCalendarView = 'month'; // or 'week', 'day'
+    let currentCalendarDate = new Date(2026, 5, 7); // June 7, 2026 (based on current metadata timestamp)
+
+    function toggleCalendarTab(tab) {
+      currentCalendarView = tab;
+      document.getElementById('cal-tab-month').className = tab === 'month' ? "px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm transition-all" : "px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 transition-all";
+      document.getElementById('cal-tab-week').className = tab === 'week' ? "px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm transition-all" : "px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 transition-all";
+      document.getElementById('cal-tab-day').className = tab === 'day' ? "px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm transition-all" : "px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-500 dark:text-slate-400 transition-all";
+
+      document.getElementById('calendar-month-panel').classList.add('hidden');
+      document.getElementById('calendar-week-panel').classList.add('hidden');
+      document.getElementById('calendar-day-panel').classList.add('hidden');
+
+      if (tab === 'month') document.getElementById('calendar-month-panel').classList.remove('hidden');
+      if (tab === 'week') document.getElementById('calendar-week-panel').classList.remove('hidden');
+      if (tab === 'day') document.getElementById('calendar-day-panel').classList.remove('hidden');
+
+      renderCalendar();
+    }
+
+    function changeCalendarPeriod(val) {
+      if (currentCalendarView === 'month') {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + val);
+      } else if (currentCalendarView === 'week') {
+        currentCalendarDate.setDate(currentCalendarDate.getDate() + (val * 7));
+      } else {
+        currentCalendarDate.setDate(currentCalendarDate.getDate() + val);
+      }
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      const db = getDB();
+      const myTasks = db.tasks.filter(t => currentUser.role === 'admin' || t.staff === currentUser.email);
+      
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      
+      if (currentCalendarView === 'month') {
+        const year = currentCalendarDate.getFullYear();
+        const month = currentCalendarDate.getMonth();
+        document.getElementById('calendar-header-title').innerText = `${monthNames[month]} ${year}`;
+
+        // Get first day of month
+        const firstDay = new Date(year, month, 1).getDay();
+        const totalDays = new Date(year, month + 1, 0).getDate();
+        
+        const grid = document.getElementById('calendar-month-grid');
+        grid.innerHTML = '';
+
+        // Fill blanks
+        for (let i = 0; i < firstDay; i++) {
+          grid.innerHTML += `<div class="bg-slate-100/30 dark:bg-slate-900/10 border border-slate-200/40 dark:border-slate-800/40 rounded-xl p-2 min-h-[100px]"></div>`;
+        }
+
+        // Days
+        for (let day = 1; day <= totalDays; day++) {
+          const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+          const dayTasks = myTasks.filter(t => t.dueDate === dateStr);
+
+          let tasksHTML = dayTasks.map(t => {
+            const badgeColor = t.priority === 'High' ? 'bg-red-500/10 text-red-600 dark:text-red-400' : 'bg-brand-500/10 text-brand-600 dark:text-brand-400';
+            return `<div class="text-[9px] px-1.5 py-0.5 rounded ${badgeColor} font-semibold truncate mt-1 cursor-pointer" onclick="editTask('${t.id}')">${t.title}</div>`;
+          }).join('');
+
+          // Highlight today
+          const isToday = dateStr === '2026-06-07';
+          const bgClass = isToday ? 'bg-brand-500/5 border-brand-500/40' : 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-200/50 dark:border-slate-800';
+
+          grid.innerHTML += `
+            <div class="border ${bgClass} rounded-2xl p-2 min-h-[100px] flex flex-col justify-between" 
+              ondragover="allowDrop(event)" ondrop="handleDrop(event, '${dateStr}')">
+              <span class="text-xs font-bold text-slate-500 dark:text-slate-400 ${isToday ? 'text-brand-600 dark:text-brand-500 font-extrabold' : ''}">${day}</span>
+              <div class="flex-grow overflow-y-auto space-y-1">
+                ${tasksHTML}
+              </div>
+            </div>
+          `;
+        }
+      } 
+      
+      else if (currentCalendarView === 'week') {
+        // Find start of week (Sunday)
+        const startOfWeek = new Date(currentCalendarDate);
+        startOfWeek.setDate(currentCalendarDate.getDate() - currentCalendarDate.getDay());
+        
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        
+        document.getElementById('calendar-header-title').innerText = `Week: ${startOfWeek.getDate()} ${monthNames[startOfWeek.getMonth()]} - ${endOfWeek.getDate()} ${monthNames[endOfWeek.getMonth()]} ${endOfWeek.getFullYear()}`;
+
+        // Build headers
+        const weekHeader = document.getElementById('calendar-week-header');
+        const weekGrid = document.getElementById('calendar-week-grid');
+        weekHeader.innerHTML = '';
+        weekGrid.innerHTML = '';
+
+        for (let i = 0; i < 7; i++) {
+          const curDay = new Date(startOfWeek);
+          curDay.setDate(startOfWeek.getDate() + i);
+          const dateStr = `${curDay.getFullYear()}-${(curDay.getMonth() + 1).toString().padStart(2, '0')}-${curDay.getDate().toString().padStart(2, '0')}`;
+          
+          weekHeader.innerHTML += `<div>${curDay.toLocaleDateString([], { weekday: 'short' })} ${curDay.getDate()}</div>`;
+
+          // Tasks
+          const dayTasks = myTasks.filter(t => t.dueDate === dateStr);
+          let tasksHTML = dayTasks.map(t => `
+            <div class="p-2 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] cursor-pointer" onclick="editTask('${t.id}')">
+              <span class="font-bold text-slate-900 dark:text-white block truncate">${t.title}</span>
+              <span class="text-[9px] text-slate-400 block">${t.dueTime}</span>
+            </div>
+          `).join('');
+
+          weekGrid.innerHTML += `
+            <div class="bg-slate-50/50 dark:bg-slate-900/30 border border-slate-200/50 dark:border-slate-800 rounded-2xl p-2.5 min-h-[300px] space-y-1.5"
+              ondragover="allowDrop(event)" ondrop="handleDrop(event, '${dateStr}')">
+              ${tasksHTML}
+            </div>
+          `;
+        }
+      } 
+      
+      else if (currentCalendarView === 'day') {
+        const dateStr = `${currentCalendarDate.getFullYear()}-${(currentCalendarDate.getMonth() + 1).toString().padStart(2, '0')}-${currentCalendarDate.getDate().toString().padStart(2, '0')}`;
+        document.getElementById('calendar-header-title').innerText = `${currentCalendarDate.getDate()} ${monthNames[currentCalendarDate.getMonth()]} ${currentCalendarDate.getFullYear()}`;
+        document.getElementById('calendar-day-date').innerText = currentCalendarDate.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        const dayTasks = myTasks.filter(t => t.dueDate === dateStr);
+        const dayGrid = document.getElementById('calendar-day-grid');
+        
+        if (dayTasks.length === 0) {
+          dayGrid.innerHTML = `<p class="text-xs text-slate-400 text-center py-20">No tasks scheduled for this day.</p>`;
+        } else {
+          dayGrid.innerHTML = dayTasks.map(t => `
+            <div class="p-4 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl flex items-center justify-between cursor-pointer" onclick="editTask('${t.id}')">
+              <div class="flex items-center gap-3">
+                <span class="w-2.5 h-2.5 rounded-full ${t.priority === 'High' ? 'bg-red-500' : t.priority === 'Medium' ? 'bg-amber-500' : 'bg-blue-500'}"></span>
+                <div>
+                  <h4 class="text-xs font-semibold text-slate-900 dark:text-white">${t.title}</h4>
+                  <p class="text-[10px] text-slate-400 mt-0.5">${t.desc || 'No description'}</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-xs font-bold text-slate-700 dark:text-slate-300 block">${t.dueTime}</span>
+                <span class="text-[9px] text-slate-400">${t.category}</span>
+              </div>
+            </div>
+          `).join('');
+        }
+      }
+    }
+
+    function allowDrop(ev) {
+      ev.preventDefault();
+    }
+
+    function handleDrop(ev, newDateStr) {
+      ev.preventDefault();
+      // Drop scheduling simulation
+      alert(`Simulation: Task moved to date ${newDateStr}`);
+    }
+
+    // --- Archive & Reporting Export Module ---
+    let archiveFilters = { start: '', end: '', category: 'all', query: '' };
+
+    function applyArchiveFilters() {
+      archiveFilters.start = document.getElementById('archive-filter-start').value;
+      archiveFilters.end = document.getElementById('archive-filter-end').value;
+      archiveFilters.category = document.getElementById('archive-filter-cat').value;
+      archiveFilters.query = document.getElementById('archive-filter-query').value.toLowerCase();
+      renderArchiveTable();
+    }
+
+    function resetArchiveFilters() {
+      document.getElementById('archive-filter-start').value = '';
+      document.getElementById('archive-filter-end').value = '';
+      document.getElementById('archive-filter-cat').value = 'all';
+      document.getElementById('archive-filter-query').value = '';
+      applyArchiveFilters();
+    }
+
+    function renderArchiveTable() {
+      const db = getDB();
+      // Show completed/historical logs
+      const logs = db.logs.filter(l => currentUser.role === 'admin' || l.staff === currentUser.email);
+      
+      const filtered = logs.filter(log => {
+        const dateMatch = (!archiveFilters.start || log.date >= archiveFilters.start) && 
+                          (!archiveFilters.end || log.date <= archiveFilters.end);
+        const catMatch = archiveFilters.category === 'all' || log.taskName.toLowerCase().includes(archiveFilters.category.toLowerCase());
+        const textMatch = !archiveFilters.query || 
+                          log.taskName.toLowerCase().includes(archiveFilters.query) || 
+                          log.remarks.toLowerCase().includes(archiveFilters.query) ||
+                          log.outcome.toLowerCase().includes(archiveFilters.query);
+        return dateMatch && catMatch && textMatch;
+      });
+
+      const tbody = document.getElementById('archive-table-body');
+      const emptyText = document.getElementById('archive-empty-text');
+      
+      tbody.innerHTML = '';
+      if (filtered.length === 0) {
+        emptyText.classList.remove('hidden');
+        return;
+      }
+      emptyText.classList.add('hidden');
+
+      filtered.forEach(log => {
+        const tr = document.createElement('tr');
+        tr.className = "border-b border-slate-100 dark:border-slate-800 text-[11px] text-slate-700 dark:text-slate-300";
+        tr.innerHTML = `
+          <td class="py-3 font-semibold">${log.date}</td>
+          <td class="py-3 font-medium text-slate-900 dark:text-white">${log.taskName}</td>
+          <td class="py-3 capitalize">${log.staff.split('@')[0]}</td>
+          <td class="py-3">${log.outcome}</td>
+          <td class="py-3 font-mono">${log.gps || 'N/A'}</td>
+          <td class="py-3 text-right" id="archive-photos-${log.id}">No Photo</td>
+        `;
+        tbody.appendChild(tr);
+
+        // Load photo count/preview
+        fetchPhotosFromDB(log.id, (photos) => {
+          const td = document.getElementById(`archive-photos-${log.id}`);
+          if (photos.length > 0) {
+            td.innerHTML = `
+              <button onclick="openLightbox('${photos[0]}')" class="text-xs font-semibold text-brand-600 dark:text-brand-500 hover:underline">
+                View (${photos.length})
+              </button>
+            `;
+          }
+        });
+      });
+    }
+
+    function exportReport(type) {
+      if (type === 'pdf') {
+        window.print();
+      } else {
+        // Export Excel (CSV)
+        const db = getDB();
+        const logs = db.logs.filter(l => currentUser.role === 'admin' || l.staff === currentUser.email);
+        
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Date,Task Name,Remarks,Observations,Outcome,GPS Location,Staff\n";
+        
+        logs.forEach(l => {
+          const row = `"${l.date}","${l.taskName}","${l.remarks}","${l.observations || ''}","${l.outcome}","${l.gps || ''}","${l.staff}"`;
+          csvContent += row + "\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "ngo_work_report.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    }
+
+    // --- Admin Panel Dashboard Manager ---
+    function renderAdminDashboard() {
+      const db = getDB();
+      
+      // Totals
+      document.getElementById('admin-total-staff').innerText = db.users.length;
+      document.getElementById('admin-org-tasks').innerText = db.tasks.length;
+      document.getElementById('admin-total-gps').innerText = db.logs.filter(l => l.gps).length;
+
+      // Calculate photos count
+      let logsRead = 0;
+      let totalPhotosCount = 0;
+      const displayTotal = () => {
+        document.getElementById('admin-total-photos').innerText = totalPhotosCount;
+      };
+
+      if (db.logs.length === 0) displayTotal();
+      db.logs.forEach(l => {
+        fetchPhotosFromDB(l.id, (photos) => {
+          totalPhotosCount += photos.length;
+          logsRead++;
+          if (logsRead === db.logs.length) {
+            displayTotal();
+          }
+        });
+      });
+
+      // Render staff table list
+      const staffBody = document.getElementById('admin-staff-table-body');
+      staffBody.innerHTML = db.users.map(u => `
+        <tr class="border-b border-slate-100 dark:border-slate-800/80 text-xs">
+          <td class="py-3 font-semibold text-slate-900 dark:text-white">${u.name}</td>
+          <td class="py-3 text-slate-500">${u.email}</td>
+          <td class="py-3 capitalize"><span class="px-2 py-0.5 rounded-full text-[10px] ${u.role === 'admin' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-brand-500/10 text-brand-600'} font-semibold">${u.role}</span></td>
+          <td class="py-3 font-medium">${u.tasksCompleted} Tasks</td>
+          <td class="py-3">
+            <span class="inline-flex items-center gap-1.5 font-bold ${u.punchStatus === 'PUNCHED_IN' ? 'text-emerald-500' : 'text-slate-400'}">
+              <span class="w-1.5 h-1.5 rounded-full ${u.punchStatus === 'PUNCHED_IN' ? 'bg-emerald-500' : 'bg-slate-400'}"></span>
+              ${u.punchStatus === 'PUNCHED_IN' ? 'Active In Field' : 'Offline'}
+            </span>
+          </td>
+          <td class="py-3 text-right">
+            <button onclick="toggleUserRole('${u.email}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg text-[10px] transition-all">
+              Toggle Role
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function toggleUserRole(email) {
+      const db = getDB();
+      const idx = db.users.findIndex(u => u.email === email);
+      if (idx !== -1) {
+        db.users[idx].role = db.users[idx].role === 'admin' ? 'staff' : 'admin';
+        setDB(db);
+        addInAppNotification(`User role toggled for ${email}`);
+        renderAdminDashboard();
+      }
+    }
+
+    // --- Chart.js Configurations ---
+    let trendChartInstance = null;
+    let categoryChartInstance = null;
+    let productivityChartInstance = null;
+
+    function renderDashboardCharts() {
+      const db = getDB();
+      const ctxTrend = document.getElementById('completionTrendChart');
+      const ctxCategory = document.getElementById('categoryDistributionChart');
+      const ctxProductivity = document.getElementById('weeklyProductivityChart');
+
+      if (!ctxTrend || !ctxCategory || !ctxProductivity) return;
+
+      // Destroy previous chart instances to prevent canvas reuse bug
+      if (trendChartInstance) trendChartInstance.destroy();
+      if (categoryChartInstance) categoryChartInstance.destroy();
+      if (productivityChartInstance) productivityChartInstance.destroy();
+
+      const isDark = document.documentElement.classList.contains('dark');
+      const textColor = isDark ? '#94a3b8' : '#64748b';
+      const gridColor = isDark ? '#334155' : '#f1f5f9';
+
+      // 1. Task Completion Trend (Past 6 days simulation)
+      trendChartInstance = new Chart(ctxTrend, {
+        type: 'line',
+        data: {
+          labels: ['Jun 2', 'Jun 3', 'Jun 4', 'Jun 5', 'Jun 6', 'Jun 7'],
+          datasets: [{
+            label: 'Tasks Completed',
+            data: [3, 5, 4, 8, 3, 6],
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.35
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: textColor } },
+            y: { grid: { color: gridColor }, ticks: { color: textColor } }
+          }
+        }
+      });
+
+      // 2. Category Distribution
+      const myTasks = db.tasks.filter(t => currentUser.role === 'admin' || t.staff === currentUser.email);
+      const categories = ['Field Visit', 'Community Survey', 'Admin Work', 'Fundraising', 'Health Camp', 'Training'];
+      const catCounts = categories.map(cat => myTasks.filter(t => t.category === cat).length);
+
+      categoryChartInstance = new Chart(ctxCategory, {
+        type: 'doughnut',
+        data: {
+          labels: categories,
+          datasets: [{
+            data: catCounts,
+            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12, font: { size: 10 } } }
+          }
+        }
+      });
+
+      // 3. Weekly Productivity (Hours / Output Sim)
+      productivityChartInstance = new Chart(ctxProductivity, {
+        type: 'bar',
+        data: {
+          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          datasets: [{
+            label: 'Tasks',
+            data: [4, 6, 3, 7, 5, 8, 2],
+            backgroundColor: '#10b981',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: textColor } },
+            y: { grid: { color: gridColor }, ticks: { color: textColor } }
+          }
+        }
+      });
+    }
+
+  </script>
+</body>
+</html>
