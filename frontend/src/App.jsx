@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { 
   HeartHandshake, Sun, Moon, LayoutDashboard, CheckSquare, 
   Calendar, ClipboardList, BarChart3, Shield, LogOut, 
-  Menu, Search, Bell, MapPin, Sparkles, PlusCircle
+  Menu, Search, Bell, MapPin, Loader2
 } from 'lucide-react';
 
-// Subcomponents import (will be created next)
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import TaskManagement from './components/TaskManagement';
@@ -14,56 +13,46 @@ import DailyWorkLog from './components/DailyWorkLog';
 import ReportsModule from './components/ReportsModule';
 import AdminPanel from './components/AdminPanel';
 
+import {
+  getToken, removeToken, getMe,
+  fetchTasks, createTask, updateTask, completeTask, deleteTask,
+  fetchLogs,
+  punchIn, punchOut,
+} from './api';
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);  // avoid flash of login page
   const [activePanel, setActivePanel] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
   
-  // Tasks, logs, alerts state
   const [tasks, setTasks] = useState([]);
   const [logs, setLogs] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
   
-  // Attendance state
   const [punchActive, setPunchActive] = useState(false);
   const [punchTime, setPunchTime] = useState(0);
   const [gpsCoords, setGpsCoords] = useState(null);
 
-  // Default values
-  const defaultTasks = [];
-  const defaultLogs = [];
-
-  // Initialize DB from LocalStorage
+  // ── Restore session on mount ──────────────────────────────────────────────
   useEffect(() => {
-    const localUser = sessionStorage.getItem('current_user');
-    if (localUser) {
-      setCurrentUser(JSON.parse(localUser));
-    }
-
-    const localTasks = localStorage.getItem('tasks');
-    if (localTasks) setTasks(JSON.parse(localTasks));
-    else {
-      setTasks(defaultTasks);
-      localStorage.setItem('tasks', JSON.stringify(defaultTasks));
-    }
-
-    const localLogs = localStorage.getItem('logs');
-    if (localLogs) setLogs(JSON.parse(localLogs));
-    else {
-      setLogs(defaultLogs);
-      localStorage.setItem('logs', JSON.stringify(defaultLogs));
-    }
-
-    const localNotifs = localStorage.getItem('notifications');
-    if (localNotifs) setNotifications(JSON.parse(localNotifs));
-    else {
-      const initialNotifs = [];
-      setNotifications(initialNotifs);
-      localStorage.setItem('notifications', JSON.stringify(initialNotifs));
-    }
+    const restore = async () => {
+      const token = getToken();
+      if (token) {
+        try {
+          const user = await getMe();
+          setCurrentUser(user);
+          await loadAppData();
+        } catch {
+          removeToken();
+        }
+      }
+      setAuthChecked(true);
+    };
+    restore();
 
     // Push notifications request
     if (Notification.permission === 'default') {
@@ -71,55 +60,155 @@ export default function App() {
     }
   }, []);
 
-  // Sync state changes with localStorage
-  const updateTasksState = (newTasks) => {
-    setTasks(newTasks);
-    localStorage.setItem('tasks', JSON.stringify(newTasks));
+  const loadAppData = async () => {
+    try {
+      const [tasksData, logsData] = await Promise.all([fetchTasks(), fetchLogs()]);
+      setTasks(normalizeTasksFromApi(tasksData));
+      setLogs(normalizeLogsFromApi(logsData));
+    } catch (err) {
+      console.error('Failed to load app data:', err);
+    }
   };
 
-  const updateLogsState = (newLogs) => {
-    setLogs(newLogs);
-    localStorage.setItem('logs', JSON.stringify(newLogs));
+  // ── Data normalization (API shape → component shape) ─────────────────────
+  // The backend uses snake_case; the frontend components use camelCase.
+  const normalizeTasksFromApi = (apiTasks) =>
+    apiTasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      desc: t.description,
+      category: t.category,
+      priority: t.priority,
+      dueDate: t.due_date,
+      dueTime: t.due_time,
+      reminder: t.reminder,
+      location: t.location,
+      notes: t.notes,
+      status: t.status,
+      staff_id: t.staff_id,
+    }));
+
+  const normalizeLogsFromApi = (apiLogs) =>
+    apiLogs.map((l) => ({
+      id: l.id,
+      taskName: l.task_name,
+      date: l.date,
+      completionTime: l.completion_time,
+      remarks: l.remarks,
+      observations: l.observations,
+      outcome: l.outcome,
+      gps: l.gps,
+      staff_id: l.staff_id,
+      photos: l.photos || [],
+    }));
+
+  // ── Auth handlers ─────────────────────────────────────────────────────────
+  const handleLoginSuccess = async (user) => {
+    setCurrentUser(user);
+    await loadAppData();
   };
 
+  const handleLogout = () => {
+    removeToken();
+    setCurrentUser(null);
+    setPunchActive(false);
+    setPunchTime(0);
+    setTasks([]);
+    setLogs([]);
+    setActivePanel('dashboard');
+  };
+
+  // ── Task CRUD ─────────────────────────────────────────────────────────────
+  const handleCreateTask = async (taskData) => {
+    try {
+      const created = await createTask(taskData);
+      const normalized = normalizeTasksFromApi([created]);
+      setTasks((prev) => [...prev, ...normalized]);
+      addNotification(`New task created: ${created.title}`);
+      return normalized[0];
+    } catch (err) {
+      alert(`Failed to create task: ${err.message}`);
+    }
+  };
+
+  const handleUpdateTask = async (taskId, taskData) => {
+    try {
+      const updated = await updateTask(taskId, taskData);
+      const normalized = normalizeTasksFromApi([updated])[0];
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? normalized : t)));
+      addNotification(`Task updated: ${updated.title}`);
+    } catch (err) {
+      alert(`Failed to update task: ${err.message}`);
+    }
+  };
+
+  const handleCompleteTask = async (taskId) => {
+    try {
+      const updated = await completeTask(taskId);
+      const normalized = normalizeTasksFromApi([updated])[0];
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? normalized : t)));
+      addNotification(`Completed task: "${updated.title}"`);
+    } catch (err) {
+      alert(`Failed to complete task: ${err.message}`);
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    try {
+      await deleteTask(taskId);
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      addNotification('Task deleted successfully.');
+    } catch (err) {
+      alert(`Failed to delete task: ${err.message}`);
+    }
+  };
+
+  // ── Logs ──────────────────────────────────────────────────────────────────
+  const refreshLogs = async () => {
+    try {
+      const logsData = await fetchLogs();
+      setLogs(normalizeLogsFromApi(logsData));
+    } catch (err) {
+      console.error('Failed to refresh logs:', err);
+    }
+  };
+
+  // ── Notifications (local only, UI feedback) ───────────────────────────────
   const addNotification = (message) => {
     const newNotif = {
       id: 'n-' + Date.now(),
       message,
-      timestamp: new Date().toLocaleString()
+      timestamp: new Date().toLocaleString(),
     };
-    const updated = [newNotif, ...notifications];
-    setNotifications(updated);
-    localStorage.setItem('notifications', JSON.stringify(updated));
-
-    if (Notification.permission === 'granted') {
-      new Notification("NGO Tracker Update", { body: message });
-    }
+    setNotifications((prev) => {
+      const updated = [newNotif, ...prev];
+      if (Notification.permission === 'granted') {
+        new Notification('NGO Tracker Update', { body: message });
+      }
+      return updated;
+    });
   };
 
-  const clearNotifications = () => {
-    setNotifications([]);
-    localStorage.removeItem('notifications');
-  };
+  const clearNotifications = () => setNotifications([]);
 
-  // Stopwatch Attendance Timer
+  // ── Attendance timer ──────────────────────────────────────────────────────
   useEffect(() => {
     let interval = null;
     if (punchActive) {
-      interval = setInterval(() => {
-        setPunchTime((prev) => prev + 1);
-      }, 1000);
+      interval = setInterval(() => setPunchTime((prev) => prev + 1), 1000);
     } else {
       clearInterval(interval);
     }
     return () => clearInterval(interval);
   }, [punchActive]);
 
-  const togglePunch = () => {
+  const togglePunch = async () => {
     if (!punchActive) {
+      try { await punchIn(); } catch {}
       setPunchActive(true);
-      addNotification("You have punched in successfully.");
+      addNotification('You have punched in successfully.');
     } else {
+      try { await punchOut(); } catch {}
       setPunchActive(false);
       const hrs = Math.floor(punchTime / 3600).toString().padStart(2, '0');
       const mins = Math.floor((punchTime % 3600) / 60).toString().padStart(2, '0');
@@ -158,16 +247,17 @@ export default function App() {
     document.documentElement.classList.toggle('dark');
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('current_user');
-    setCurrentUser(null);
-    setPunchActive(false);
-    setPunchTime(0);
-    setActivePanel('dashboard');
-  };
+  // ── Loading splash ────────────────────────────────────────────────────────
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
+      </div>
+    );
+  }
 
   if (!currentUser) {
-    return <Auth onLoginSuccess={(user) => setCurrentUser(user)} />;
+    return <Auth onLoginSuccess={handleLoginSuccess} />;
   }
 
   return (
@@ -213,7 +303,7 @@ export default function App() {
             <ClipboardList className="w-4 h-4" /> Daily Work Log
           </button>
           <button onClick={() => { setActivePanel('reports'); setSidebarOpen(false); }} className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl transition-all ${activePanel === 'reports' ? 'bg-brand-500 text-white shadow-md shadow-brand-500/15' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/30'}`}>
-            <BarChart3 className="w-4 h-4" /> Reports & Archive
+            <BarChart3 className="w-4 h-4" /> Reports &amp; Archive
           </button>
           {currentUser.role === 'admin' && (
             <button onClick={() => { setActivePanel('admin-panel'); setSidebarOpen(false); }} className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl transition-all ${activePanel === 'admin-panel' ? 'bg-brand-500 text-white shadow-md shadow-brand-500/15' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/30'}`}>
@@ -279,7 +369,7 @@ export default function App() {
               {notifDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl p-4 z-50">
                   <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-700/60 mb-2">
-                    <h4 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5"><Bell className="w-4 h-4" /> Alerts</h4>
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5"><Bell className="w-4 h-4" /> Alerts</h4>
                     <button onClick={clearNotifications} className="text-xs text-brand-600 dark:text-brand-500 hover:underline">Clear all</button>
                   </div>
                   <div className="max-h-60 overflow-y-auto space-y-2">
@@ -309,11 +399,7 @@ export default function App() {
               tasks={tasks} 
               logs={logs} 
               gpsCoords={gpsCoords}
-              triggerComplete={(id) => {
-                const updated = tasks.map(t => t.id === id ? { ...t, status: 'Completed' } : t);
-                updateTasksState(updated);
-                addNotification(`Completed task "${tasks.find(t => t.id === id).title}"`);
-              }}
+              triggerComplete={handleCompleteTask}
             />
           )}
 
@@ -321,7 +407,10 @@ export default function App() {
             <TaskManagement 
               currentUser={currentUser} 
               tasks={tasks} 
-              updateTasks={updateTasksState} 
+              onCreateTask={handleCreateTask}
+              onUpdateTask={handleUpdateTask}
+              onCompleteTask={handleCompleteTask}
+              onDeleteTask={handleDeleteTask}
               addNotification={addNotification}
               globalSearch={globalSearch}
             />
@@ -331,7 +420,7 @@ export default function App() {
             <CalendarView 
               currentUser={currentUser} 
               tasks={tasks} 
-              updateTasks={updateTasksState}
+              onCompleteTask={handleCompleteTask}
             />
           )}
 
@@ -340,8 +429,8 @@ export default function App() {
               currentUser={currentUser} 
               tasks={tasks} 
               logs={logs} 
-              updateLogs={updateLogsState} 
-              updateTasks={updateTasksState}
+              onRefreshLogs={refreshLogs}
+              onCompleteTask={handleCompleteTask}
               addNotification={addNotification}
               gpsCoords={gpsCoords}
             />

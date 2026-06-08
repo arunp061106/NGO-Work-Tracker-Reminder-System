@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { HeartHandshake, Mail, Lock, User, Shield, ArrowRight } from 'lucide-react';
+import { HeartHandshake, Mail, Lock, User, Shield, ArrowRight, Loader2 } from 'lucide-react';
+import { loginUser, registerUser, getToken, getMe } from '../api';
 
 export default function Auth({ onLoginSuccess }) {
   const [view, setView] = useState('login'); // 'login' | 'register' | 'forgot'
@@ -7,36 +8,68 @@ export default function Auth({ onLoginSuccess }) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState('staff');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    // Pre-configured accounts simulation
-    if (email === 'staff@ngo.org' && password === 'password') {
-      onLoginSuccess({ name: 'John Doe', email: 'staff@ngo.org', role: 'staff' });
-    } else if (email === 'admin@ngo.org' && password === 'password') {
-      onLoginSuccess({ name: 'Sarah Connor', email: 'admin@ngo.org', role: 'admin' });
-    } else {
-      alert("Invalid login details. Tip: use staff@ngo.org / password or admin@ngo.org / password");
+    setError('');
+    setLoading(true);
+    try {
+      await loginUser(email, password);
+      const user = await getMe();
+      onLoginSuccess(user);
+    } catch (err) {
+      setError(err.message || 'Invalid login details. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    alert("Account registered successfully! Please login with your new credentials.");
-    setView('login');
+    setError('');
+    setLoading(true);
+    try {
+      await registerUser(name, email, password, role);
+      setError('');
+      alert('Account created successfully! Please sign in.');
+      setView('login');
+    } catch (err) {
+      setError(err.message || 'Registration failed. Email may already be registered.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleForgotSubmit = (e) => {
     e.preventDefault();
-    alert(`A password reset verification email has been simulated and sent to: ${email}`);
+    alert(`A password reset email has been simulated and sent to: ${email}`);
     setView('login');
   };
 
-  const quickDemoLogin = (selectedRole) => {
-    if (selectedRole === 'staff') {
-      onLoginSuccess({ name: 'John Doe', email: 'staff@ngo.org', role: 'staff' });
-    } else {
-      onLoginSuccess({ name: 'Sarah Connor', email: 'admin@ngo.org', role: 'admin' });
+  const quickDemoLogin = async (selectedRole) => {
+    setError('');
+    setLoading(true);
+    const demoEmail = selectedRole === 'staff' ? 'staff@ngo.org' : 'admin@ngo.org';
+    const demoPassword = 'password';
+    try {
+      await loginUser(demoEmail, demoPassword);
+      const user = await getMe();
+      onLoginSuccess(user);
+    } catch (err) {
+      // Demo accounts may not exist yet – fall back to creating them
+      try {
+        const demoName = selectedRole === 'staff' ? 'John Doe' : 'Sarah Connor';
+        await registerUser(demoName, demoEmail, demoPassword, selectedRole);
+        await loginUser(demoEmail, demoPassword);
+        const user = await getMe();
+        onLoginSuccess(user);
+      } catch (innerErr) {
+        setError('Could not connect to the server. Make sure the backend is running.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -45,13 +78,20 @@ export default function Auth({ onLoginSuccess }) {
       <div className="w-full max-w-md bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 shadow-2xl rounded-2xl p-8">
         
         {/* Branding header */}
-        <div class="text-center mb-8">
+        <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center p-3 bg-brand-500/10 rounded-2xl text-brand-600 dark:text-brand-500 mb-3">
             <HeartHandshake className="w-8 h-8" />
           </div>
           <h1 className="text-2xl font-bold font-outfit tracking-tight text-slate-900 dark:text-white">NGO Work Tracker</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Staff Work Tracker & Reminder System</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Staff Work Tracker &amp; Reminder System</p>
         </div>
+
+        {/* Error banner */}
+        {error && (
+          <div className="mb-4 px-4 py-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-600 dark:text-red-400">
+            {error}
+          </div>
+        )}
 
         {view === 'login' && (
           <form onSubmit={handleLoginSubmit} className="space-y-4">
@@ -77,7 +117,7 @@ export default function Auth({ onLoginSuccess }) {
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Password</label>
                 <button type="button" onClick={() => setView('forgot')} className="text-xs text-brand-600 dark:text-brand-500 hover:underline">Forgot Password?</button>
               </div>
-              <div class="relative">
+              <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                   <Lock className="w-4 h-4" />
                 </span>
@@ -92,18 +132,23 @@ export default function Auth({ onLoginSuccess }) {
               </div>
             </div>
 
-            <button type="submit" className="w-full mt-6 py-2.5 bg-gradient-to-r from-brand-600 to-blue-500 hover:from-brand-700 hover:to-blue-600 text-white font-medium rounded-xl shadow-lg shadow-brand-500/20 transition-all text-sm flex items-center justify-center gap-2">
-              Sign In <ArrowRight className="w-4 h-4" />
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full mt-6 py-2.5 bg-gradient-to-r from-brand-600 to-blue-500 hover:from-brand-700 hover:to-blue-600 text-white font-medium rounded-xl shadow-lg shadow-brand-500/20 transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+              {loading ? 'Signing In...' : 'Sign In'}
             </button>
 
             {/* Quick test portals */}
             <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-700/50">
               <p className="text-xs text-center text-slate-400 dark:text-slate-500 mb-3">Quick Demo Login (Evaluator mode)</p>
               <div className="grid grid-cols-2 gap-3">
-                <button type="button" onClick={() => quickDemoLogin('staff')} className="flex items-center justify-center gap-1.5 py-2 px-3 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300">
+                <button type="button" onClick={() => quickDemoLogin('staff')} disabled={loading} className="flex items-center justify-center gap-1.5 py-2 px-3 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 disabled:opacity-50">
                   <User className="w-3.5 h-3.5 text-brand-500" /> Staff Portal
                 </button>
-                <button type="button" onClick={() => quickDemoLogin('admin')} className="flex items-center justify-center gap-1.5 py-2 px-3 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300">
+                <button type="button" onClick={() => quickDemoLogin('admin')} disabled={loading} className="flex items-center justify-center gap-1.5 py-2 px-3 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 disabled:opacity-50">
                   <Shield className="w-3.5 h-3.5 text-emerald-500" /> Admin Panel
                 </button>
               </div>
@@ -146,6 +191,7 @@ export default function Auth({ onLoginSuccess }) {
               <input 
                 type="password" 
                 required 
+                minLength={6}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -164,8 +210,13 @@ export default function Auth({ onLoginSuccess }) {
               </select>
             </div>
 
-            <button type="submit" className="w-full mt-6 py-2.5 bg-gradient-to-r from-brand-600 to-blue-500 text-white font-medium rounded-xl shadow-lg transition-all text-sm">
-              Create Account
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full mt-6 py-2.5 bg-gradient-to-r from-brand-600 to-blue-500 text-white font-medium rounded-xl shadow-lg transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-70"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {loading ? 'Creating Account...' : 'Create Account'}
             </button>
 
             <div className="text-center mt-6">

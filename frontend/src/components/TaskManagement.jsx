@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { PlusCircle, Edit3, Trash2, Calendar, MapPin, AlertCircle, X, Check } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, Calendar, MapPin, AlertCircle, X, Check, Loader2 } from 'lucide-react';
 
-export default function TaskManagement({ currentUser, tasks, updateTasks, addNotification, globalSearch }) {
+export default function TaskManagement({ currentUser, tasks, onCreateTask, onUpdateTask, onCompleteTask, onDeleteTask, addNotification, globalSearch }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [saving, setSaving] = useState(false);
   
   // Filters
   const [filterCat, setFilterCat] = useState('all');
@@ -22,7 +23,7 @@ export default function TaskManagement({ currentUser, tasks, updateTasks, addNot
   const [notes, setNotes] = useState('');
 
   const myTasks = useMemo(() => {
-    return tasks.filter(t => currentUser.role === 'admin' || t.staff === currentUser.email);
+    return tasks.filter(t => currentUser.role === 'admin' || t.staff_id === currentUser.id);
   }, [tasks, currentUser]);
 
   const filteredTasks = useMemo(() => {
@@ -45,7 +46,7 @@ export default function TaskManagement({ currentUser, tasks, updateTasks, addNot
     if (task) {
       setEditingTask(task);
       setTitle(task.title);
-      setDesc(task.desc);
+      setDesc(task.desc || '');
       setCategory(task.category);
       setPriority(task.priority);
       setDueDate(task.dueDate);
@@ -68,41 +69,44 @@ export default function TaskManagement({ currentUser, tasks, updateTasks, addNot
     setModalOpen(true);
   };
 
-  const handleSaveTask = (e) => {
+  // Build the API payload (snake_case for backend)
+  const buildPayload = () => ({
+    title,
+    description: desc,
+    category,
+    priority,
+    due_date: dueDate,
+    due_time: dueTime,
+    reminder,
+    location,
+    notes,
+  });
+
+  const handleSaveTask = async (e) => {
     e.preventDefault();
-    if (editingTask) {
-      // Update
-      const updated = tasks.map(t => t.id === editingTask.id ? {
-        ...t, title, desc, category, priority, dueDate, dueTime, reminder, location, notes
-      } : t);
-      updateTasks(updated);
-      addNotification(`Task updated: ${title}`);
-    } else {
-      // Create new
-      const newTask = {
-        id: 't-' + Date.now(),
-        title, desc, category, priority, dueDate, dueTime, reminder, location, notes,
-        status: 'Pending',
-        staff: currentUser.email
-      };
-      updateTasks([...tasks, newTask]);
-      addNotification(`New task created: ${title}`);
-    }
-    setModalOpen(false);
-  };
-
-  const handleDeleteTask = (id) => {
-    if (confirm("Are you sure you want to delete this task?")) {
-      const updated = tasks.filter(t => t.id !== id);
-      updateTasks(updated);
-      addNotification("Task deleted successfully.");
+    setSaving(true);
+    try {
+      if (editingTask) {
+        await onUpdateTask(editingTask.id, buildPayload());
+      } else {
+        await onCreateTask(buildPayload());
+      }
+      setModalOpen(false);
+    } catch {
+      // Error already alerted by parent
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleQuickComplete = (id) => {
-    const updated = tasks.map(t => t.id === id ? { ...t, status: 'Completed' } : t);
-    updateTasks(updated);
-    addNotification(`Task completed: ${tasks.find(t => t.id === id).title}`);
+  const handleDeleteTask = async (id) => {
+    if (window.confirm('Are you sure you want to delete this task?')) {
+      await onDeleteTask(id);
+    }
+  };
+
+  const handleQuickComplete = async (id) => {
+    await onCompleteTask(id);
   };
 
   return (
@@ -236,9 +240,9 @@ export default function TaskManagement({ currentUser, tasks, updateTasks, addNot
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Description</label>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Description</label>
                 <textarea 
-                  rows="2.5" 
+                  rows="2" 
                   placeholder="Include goals, context, or checklist..." 
                   value={desc}
                   onChange={(e) => setDesc(e.target.value)}
@@ -338,7 +342,10 @@ export default function TaskManagement({ currentUser, tasks, updateTasks, addNot
 
               <div className="pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
                 <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-brand-500/10">Save Task</button>
+                <button type="submit" disabled={saving} className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-brand-500/10 flex items-center gap-2 disabled:opacity-70">
+                  {saving && <Loader2 className="w-3 h-3 animate-spin" />}
+                  {saving ? 'Saving...' : 'Save Task'}
+                </button>
               </div>
             </form>
           </div>

@@ -1,56 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { ClipboardSignature, Image, Check, MapPin, Trash2, Download, Eye, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { ClipboardSignature, Image, Check, MapPin, Trash2, Download, X, Loader2 } from 'lucide-react';
+import { createLog } from '../api';
 
-export default function DailyWorkLog({ currentUser, tasks, logs, updateLogs, updateTasks, addNotification, gpsCoords }) {
+export default function DailyWorkLog({ currentUser, tasks, logs, onRefreshLogs, onCompleteTask, addNotification, gpsCoords }) {
   const [selectedTaskId, setSelectedTaskId] = useState('');
   const [remarks, setRemarks] = useState('');
   const [observations, setObservations] = useState('');
   const [outcome, setOutcome] = useState('');
-  const [photoFiles, setPhotoFiles] = useState([]); // Base64 binaries
-  const [logPhotos, setLogPhotos] = useState({}); // Mapping logId -> [base64Photos]
+  const [photoFiles, setPhotoFiles] = useState([]); // { file: File, preview: string }[]
+  const [submitting, setSubmitting] = useState(false);
   
   // Lightbox state
   const [lightboxImg, setLightboxImg] = useState(null);
-
-  // IndexedDB photo setup
-  useEffect(() => {
-    const request = indexedDB.open("ngo_photos_database", 1);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains("photos")) {
-        db.createObjectStore("photos", { keyPath: "id", autoIncrement: true });
-      }
-    };
-    request.onsuccess = (e) => {
-      const db = e.target.result;
-      loadAllLogPhotos(db);
-    };
-  }, [logs]);
-
-  const loadAllLogPhotos = (db) => {
-    const transaction = db.transaction(["photos"], "readonly");
-    const store = transaction.objectStore("photos");
-    const tempMap = {};
-
-    store.openCursor().onsuccess = (event) => {
-      const cursor = event.target.result;
-      if (cursor) {
-        const { logId, data } = cursor.value;
-        if (!tempMap[logId]) tempMap[logId] = [];
-        tempMap[logId].push(data);
-        cursor.continue();
-      } else {
-        setLogPhotos(tempMap);
-      }
-    };
-  };
 
   const handlePhotoSelect = (e) => {
     const files = Array.from(e.target.files);
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (evt) => {
-        setPhotoFiles(prev => [...prev, evt.target.result]);
+        setPhotoFiles(prev => [...prev, { file, preview: evt.target.result }]);
       };
       reader.readAsDataURL(file);
     });
@@ -62,7 +30,7 @@ export default function DailyWorkLog({ currentUser, tasks, logs, updateLogs, upd
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (evt) => {
-        setPhotoFiles(prev => [...prev, evt.target.result]);
+        setPhotoFiles(prev => [...prev, { file, preview: evt.target.result }]);
       };
       reader.readAsDataURL(file);
     });
@@ -72,68 +40,56 @@ export default function DailyWorkLog({ currentUser, tasks, logs, updateLogs, upd
     setPhotoFiles(prev => prev.filter((_, idx) => idx !== index));
   };
 
-  const savePhotosIndexedDB = (logId, base64List) => {
-    const request = indexedDB.open("ngo_photos_database", 1);
-    request.onsuccess = (e) => {
-      const db = e.target.result;
-      const transaction = db.transaction(["photos"], "readwrite");
-      const store = transaction.objectStore("photos");
-      
-      base64List.forEach(data => {
-        store.add({ logId, data });
-      });
-
-      transaction.oncomplete = () => {
-        loadAllLogPhotos(db);
-      };
-    };
-  };
-
-  const handleLogSubmit = (e) => {
+  const handleLogSubmit = async (e) => {
     e.preventDefault();
     if (!selectedTaskId) {
-      alert("Please select a task to document.");
+      alert('Please select a task to document.');
       return;
     }
 
-    const task = tasks.find(t => t.id === selectedTaskId);
-    const logId = 'l-' + Date.now();
+    const task = tasks.find(t => String(t.id) === String(selectedTaskId));
+    setSubmitting(true);
 
-    // Mark task completed
-    const updatedTasks = tasks.map(t => t.id === selectedTaskId ? { ...t, status: 'Completed' } : t);
-    updateTasks(updatedTasks);
+    try {
+      // Build multipart form data for the backend
+      const formData = new FormData();
+      formData.append('task_name', task.title);
+      formData.append('date', new Date().toISOString().split('T')[0]);
+      formData.append('completion_time', new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      formData.append('remarks', remarks);
+      formData.append('observations', observations);
+      formData.append('outcome', outcome);
+      formData.append('gps', gpsCoords || '');
+      photoFiles.forEach(({ file }) => formData.append('images', file));
 
-    const newLog = {
-      id: logId,
-      taskName: task.title,
-      date: new Date().toISOString().split('T')[0],
-      completionTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      remarks,
-      observations,
-      outcome,
-      staff: currentUser.email,
-      gps: gpsCoords || '28.6139, 77.2090'
-    };
+      await createLog(formData);
 
-    updateLogs([...logs, newLog]);
-    
-    // Save photos
-    if (photoFiles.length > 0) {
-      savePhotosIndexedDB(logId, photoFiles);
+      // Mark the task as completed
+      await onCompleteTask(Number(selectedTaskId));
+
+      // Refresh logs from server
+      await onRefreshLogs();
+
+      // Reset form
+      setSelectedTaskId('');
+      setRemarks('');
+      setObservations('');
+      setOutcome('');
+      setPhotoFiles([]);
+
+      addNotification(`Daily Work Log submitted: "${task.title}"`);
+    } catch (err) {
+      alert(`Failed to submit log: ${err.message}`);
+    } finally {
+      setSubmitting(false);
     }
-
-    // Reset Form
-    setSelectedTaskId('');
-    setRemarks('');
-    setObservations('');
-    setOutcome('');
-    setPhotoFiles([]);
-
-    addNotification(`Daily Work Log submitted: "${task.title}"`);
   };
 
-  const pendingTasks = tasks.filter(t => t.status !== 'Completed' && (currentUser.role === 'admin' || t.staff === currentUser.email));
-  const myLogs = logs.filter(l => currentUser.role === 'admin' || l.staff === currentUser.email);
+  const pendingTasks = tasks.filter(t => t.status !== 'Completed' && (currentUser.role === 'admin' || t.staff_id === currentUser.id));
+  const myLogs = logs.filter(l => currentUser.role === 'admin' || l.staff_id === currentUser.id);
+
+  // Backend base URL for serving uploaded photos
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   return (
     <div className="space-y-6 fade-in">
@@ -213,7 +169,7 @@ export default function DailyWorkLog({ currentUser, tasks, logs, updateLogs, upd
                 className="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-brand-500 dark:hover:border-brand-500 rounded-xl p-4 text-center cursor-pointer transition-colors flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-900/10"
               >
                 <Image className="w-8 h-8 text-slate-400 mb-2" />
-                <span className="text-[11px] text-slate-500">Drag & drop files or <span className="text-brand-500 font-semibold">Browse</span></span>
+                <span className="text-[11px] text-slate-500">Drag &amp; drop files or <span className="text-brand-500 font-semibold">Browse</span></span>
                 <input 
                   type="file" 
                   id="file-upload-input" 
@@ -227,9 +183,9 @@ export default function DailyWorkLog({ currentUser, tasks, logs, updateLogs, upd
               {/* Photos Previews */}
               {photoFiles.length > 0 && (
                 <div className="grid grid-cols-4 gap-2 mt-3">
-                  {photoFiles.map((base64, index) => (
+                  {photoFiles.map(({ preview }, index) => (
                     <div key={index} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                      <img src={base64} className="w-full h-full object-cover" alt="Preview" />
+                      <img src={preview} className="w-full h-full object-cover" alt="Preview" />
                       <button 
                         type="button" 
                         onClick={() => removeSelectedPhoto(index)}
@@ -243,8 +199,9 @@ export default function DailyWorkLog({ currentUser, tasks, logs, updateLogs, upd
               )}
             </div>
 
-            <button type="submit" className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-semibold rounded-xl text-xs shadow-md shadow-emerald-500/10 transition-all flex items-center justify-center gap-1">
-              <Check className="w-4 h-4" /> Submit Work Log
+            <button type="submit" disabled={submitting} className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-semibold rounded-xl text-xs shadow-md shadow-emerald-500/10 transition-all flex items-center justify-center gap-1 disabled:opacity-70">
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {submitting ? 'Submitting...' : 'Submit Work Log'}
             </button>
           </form>
         </div>
@@ -265,7 +222,7 @@ export default function DailyWorkLog({ currentUser, tasks, logs, updateLogs, upd
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="text-xs font-bold text-slate-950 dark:text-white font-outfit">{log.taskName}</h4>
-                      <span className="text-[9px] text-slate-400">By {log.staff} | {log.date} @ {log.completionTime}</span>
+                      <span className="text-[9px] text-slate-400">Staff ID {log.staff_id} | {log.date} @ {log.completionTime}</span>
                     </div>
                     {log.gps && (
                       <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-emerald-500 py-0.5 px-2 bg-emerald-500/10 rounded-full">
@@ -276,22 +233,28 @@ export default function DailyWorkLog({ currentUser, tasks, logs, updateLogs, upd
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-[11px] text-slate-500 dark:text-slate-400">
                     <div><span className="font-bold text-slate-700 dark:text-slate-300 block">Remarks:</span> {log.remarks}</div>
-                    <div><span class="font-bold text-slate-700 dark:text-slate-300 block">Observations:</span> {log.observations || 'N/A'}</div>
-                    <div><span class="font-bold text-slate-700 dark:text-slate-300 block">Outcome:</span> {log.outcome}</div>
+                    <div><span className="font-bold text-slate-700 dark:text-slate-300 block">Observations:</span> {log.observations || 'N/A'}</div>
+                    <div><span className="font-bold text-slate-700 dark:text-slate-300 block">Outcome:</span> {log.outcome}</div>
                   </div>
 
-                  {/* Attachment Photo Gallery */}
-                  <div className="grid grid-cols-5 gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    {logPhotos[log.id] && logPhotos[log.id].length > 0 ? (
-                      logPhotos[log.id].map((photo, pIdx) => (
-                        <div key={pIdx} className="aspect-square rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 cursor-pointer" onClick={() => setLightboxImg(photo)}>
-                          <img src={photo} className="w-full h-full object-cover hover:scale-110 transition-transform" alt="Evidence" />
+                  {/* Backend-served photo gallery */}
+                  {log.photos && log.photos.length > 0 && (
+                    <div className="grid grid-cols-5 gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      {log.photos.map((photo, pIdx) => (
+                        <div 
+                          key={pIdx} 
+                          className="aspect-square rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 cursor-pointer" 
+                          onClick={() => setLightboxImg(`${API_BASE}${photo.cloudinary_url}`)}
+                        >
+                          <img 
+                            src={`${API_BASE}${photo.cloudinary_url}`} 
+                            className="w-full h-full object-cover hover:scale-110 transition-transform" 
+                            alt="Evidence" 
+                          />
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-[9px] text-slate-400 col-span-full italic">No evidence photo submitted.</p>
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
             )}
