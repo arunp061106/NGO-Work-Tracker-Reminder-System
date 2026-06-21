@@ -14,6 +14,7 @@ class User(Base):
     role = Column(String(20), default="staff") # admin or staff
     punch_status = Column(String(20), default="PUNCHED_OUT") # PUNCHED_IN or PUNCHED_OUT
     tasks_completed_count = Column(Integer, default=0)
+    is_approved = Column(Boolean, default=False)
 
     tasks = relationship("Task", back_populates="staff_member")
     logs = relationship("DailyLog", back_populates="staff_member")

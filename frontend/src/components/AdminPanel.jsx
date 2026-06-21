@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Shield, Loader2 } from 'lucide-react';
-import { fetchUsers, toggleUserRole } from '../api';
+import { Shield, Loader2, Check, Trash2 } from 'lucide-react';
+import { fetchUsers, toggleUserRole, approveUser, deleteUser } from '../api';
 
 export default function AdminPanel({ currentUser, tasks, logs }) {
   const [usersList, setUsersList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState(null);
+  const [actioningId, setActioningId] = useState(null);
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -30,6 +31,31 @@ export default function AdminPanel({ currentUser, tasks, logs }) {
       alert(`Failed to toggle role: ${err.message}`);
     } finally {
       setTogglingId(null);
+    }
+  };
+
+  const handleApprove = async (userId) => {
+    setActioningId(userId);
+    try {
+      const updated = await approveUser(userId);
+      setUsersList(prev => prev.map(u => u.id === userId ? updated : u));
+    } catch (err) {
+      alert(`Failed to approve user: ${err.message}`);
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  const handleDelete = async (userId) => {
+    if (!window.confirm("Are you sure you want to reject and delete this user registration?")) return;
+    setActioningId(userId);
+    try {
+      await deleteUser(userId);
+      setUsersList(prev => prev.filter(u => u.id !== userId));
+    } catch (err) {
+      alert(`Failed to delete user: ${err.message}`);
+    } finally {
+      setActioningId(null);
     }
   };
 
@@ -88,9 +114,10 @@ export default function AdminPanel({ currentUser, tasks, logs }) {
                   <th className="pb-3">Staff Name</th>
                   <th className="pb-3">Email Address</th>
                   <th className="pb-3">Authorization Role</th>
+                  <th className="pb-3">Approval Status</th>
                   <th className="pb-3">Tasks Completed</th>
                   <th className="pb-3">Punch State</th>
-                  <th className="pb-3 text-right">Actions</th>
+                  <th className="pb-3 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60 text-slate-600 dark:text-slate-300">
@@ -103,6 +130,11 @@ export default function AdminPanel({ currentUser, tasks, logs }) {
                         {u.role}
                       </span>
                     </td>
+                    <td className="py-3">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold capitalize ${u.is_approved ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'}`}>
+                        {u.is_approved ? 'Approved' : 'Pending Approval'}
+                      </span>
+                    </td>
                     <td className="py-3 font-semibold">{u.tasks_completed_count || 0} tasks</td>
                     <td className="py-3">
                       <span className="inline-flex items-center gap-1.5 font-bold">
@@ -110,15 +142,49 @@ export default function AdminPanel({ currentUser, tasks, logs }) {
                         {u.punch_status === 'PUNCHED_IN' ? 'Active In Field' : 'Offline'}
                       </span>
                     </td>
-                    <td className="py-3 text-right">
-                      <button 
-                        onClick={() => handleToggleRole(u.id)} 
-                        disabled={togglingId === u.id || u.id === currentUser.id}
-                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg text-[10px] transition-all disabled:opacity-40 flex items-center gap-1 ml-auto"
-                      >
-                        {togglingId === u.id && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
-                        Toggle Authorization
-                      </button>
+                    <td className="py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        {!u.is_approved ? (
+                          <>
+                            <button
+                              onClick={() => handleApprove(u.id)}
+                              disabled={actioningId === u.id}
+                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-[10px] transition-all disabled:opacity-40 flex items-center gap-1"
+                            >
+                              {actioningId === u.id && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+                              <Check className="w-3 h-3" /> Approve
+                            </button>
+                            <button
+                              onClick={() => handleDelete(u.id)}
+                              disabled={actioningId === u.id || u.id === currentUser.id}
+                              className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-600 font-semibold rounded-lg text-[10px] transition-all disabled:opacity-40 flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3 h-3" /> Reject
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button 
+                              onClick={() => handleToggleRole(u.id)} 
+                              disabled={togglingId === u.id || u.id === currentUser.id}
+                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-lg text-[10px] transition-all disabled:opacity-40 flex items-center gap-1"
+                            >
+                              {togglingId === u.id && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+                              Toggle Authorization
+                            </button>
+                            {u.id !== currentUser.id && (
+                              <button
+                                onClick={() => handleDelete(u.id)}
+                                disabled={actioningId === u.id}
+                                className="p-1 hover:bg-red-500/10 text-red-500 rounded-lg transition-all"
+                                title="Delete user"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

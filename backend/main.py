@@ -1,11 +1,11 @@
 import os
 import shutil
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
-import models, schemas, auth
+import models, schemas, auth, email_service
 from database import engine, get_db
 
 # Create database tables
@@ -33,21 +33,30 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # ================= AUTHENTICATION ENDPOINTS =================
 
 @app.post("/api/auth/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
-def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+def register_user(user: schemas.UserCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Auto-approve the first registered user to solve bootstrap problem
+    is_first_user = db.query(models.User).count() == 0
     
     hashed_pwd = auth.get_password_hash(user.password)
     new_user = models.User(
         name=user.name,
         email=user.email,
         hashed_password=hashed_pwd,
-        role=user.role
+        role=user.role,
+        is_approved=True if is_first_user else False
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    
+    # Notify admin via email if not the first auto-approved admin user
+    if not is_first_user:
+        email_service.schedule_approval_email(background_tasks, user.name, user.email, user.role)
+        
     return new_user
 
 @app.post("/api/auth/login", response_model=schemas.Token)
@@ -59,6 +68,13 @@ def login_user(credentials: schemas.UserLogin, db: Session = Depends(get_db)):
             detail="Invalid email or password"
         )
     
+    # Check if the user is approved
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending approval by the group leader."
+        )
+        
     access_token = auth.create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -212,3 +228,24 @@ def admin_toggle_role(user_id: int, current_admin: models.User = Depends(auth.ge
     db.commit()
     db.refresh(user)
     return user
+
+@app.patch("/api/admin/users/{user_id}/approve", response_model=schemas.UserResponse)
+def admin_approve_user(user_id: int, current_admin: models.User = Depends(auth.get_current_admin), db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_approved = True
+    db.commit()
+    db.refresh(user)
+    return user
+
+@app.delete("/api/admin/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def admin_delete_user(user_id: int, current_admin: models.User = Depends(auth.get_current_admin), db: Session = Depends(get_db)):
+    if user_id == current_admin.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own admin account")
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(user)
+    db.commit()
+    return None

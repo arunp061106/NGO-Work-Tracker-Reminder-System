@@ -33,7 +33,7 @@ export default function Auth({ onLoginSuccess }) {
     try {
       await registerUser(name, email, password, role);
       setError('');
-      alert('Account created successfully! Please sign in.');
+      alert('Account request submitted successfully! Your account is pending approval by the group leader. An email notification has been scheduled. You will be able to sign in once approved.');
       setView('login');
     } catch (err) {
       setError(err.message || 'Registration failed. Email may already be registered.');

@@ -119,3 +119,11 @@ export async function fetchUsers() {
 export async function toggleUserRole(userId) {
   return request(`/api/admin/users/${userId}/toggle-role`, { method: 'PATCH' });
 }
+
+export async function approveUser(userId) {
+  return request(`/api/admin/users/${userId}/approve`, { method: 'PATCH' });
+}
+
+export async function deleteUser(userId) {
+  return request(`/api/admin/users/${userId}`, { method: 'DELETE' });
+}

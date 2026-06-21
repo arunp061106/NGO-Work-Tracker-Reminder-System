@@ -13,6 +13,7 @@ class UserResponse(UserBase):
     id: int
     punch_status: str
     tasks_completed_count: int
+    is_approved: bool
 
     class Config:
         from_attributes = True
