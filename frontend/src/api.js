@@ -1,7 +1,37 @@
 // Centralized API client for NGO Work Tracker
 // All requests go through these helpers so the JWT header is always attached.
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Safety guard: only allow plain http/https URLs.
+// If DATABASE_URL or any credential-bearing URL leaks into VITE_API_URL, reject it and fall back.
+const _raw = import.meta.env.VITE_API_URL || '';
+
+function _isSafeApiUrl(url) {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    // Must be http or https
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    // Must not contain embedded credentials (username/password in URL)
+    if (parsed.username || parsed.password) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const API_BASE = _isSafeApiUrl(_raw)
+  ? _raw.replace(/\/$/, '')       // strip trailing slash
+  : (() => {
+      if (_raw) {
+        console.error(
+          '[api.js] VITE_API_URL is invalid or contains credentials:\n',
+          _raw.replace(/:\/\/.*@/, '://***@'), // mask password in log
+          '\nFalling back to http://localhost:8000.',
+          '\nFix: set VITE_API_URL to your backend URL (e.g. https://your-backend.onrender.com) in your Vercel project → Settings → Environment Variables.',
+        );
+      }
+      return 'http://localhost:8000';
+    })();
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
 export const getToken = () => localStorage.getItem('ngo_token');

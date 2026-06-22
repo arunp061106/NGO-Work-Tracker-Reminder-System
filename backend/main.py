@@ -8,8 +8,12 @@ from typing import List
 import models, schemas, auth, email_service
 from database import engine, get_db
 
-# Create database tables
-models.Base.metadata.create_all(bind=engine)
+# Create database tables — wrapped so a cold-start on Vercel doesn't crash
+# if the DB is momentarily unreachable.
+try:
+    models.Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"[WARN] Could not run create_all: {e}")
 
 app = FastAPI(
     title="NGO Work Tracker API",
@@ -17,18 +21,30 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS configurations
+# CORS configuration — allow_origins=["*"] + allow_credentials=True is
+# forbidden by the CORS spec and browsers will block it in production.
+# Use explicit origins + a regex to allow all *.vercel.app deployments.
+CORS_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:8000",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Create static directories for local uploads
-os.makedirs("static/uploads", exist_ok=True)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Static file uploads — Vercel serverless has a read-only filesystem,
+# so we skip mounting /static if the directory can't be created.
+try:
+    os.makedirs("static/uploads", exist_ok=True)
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+except Exception:
+    pass  # Running on Vercel or another read-only environment
 
 # ================= AUTHENTICATION ENDPOINTS =================
 
@@ -189,19 +205,25 @@ def create_daily_log(
     db.commit()
     db.refresh(db_log)
 
-    # Local file upload process
+    # File upload — Vercel serverless has a read-only filesystem.
+    # Attempt to save locally; skip silently if it fails (e.g. on Vercel).
     for img in images:
-        file_location = f"static/uploads/{img.filename}"
-        with open(file_location, "wb") as buffer:
-            shutil.copyfileobj(img.file, buffer)
-            
-        db_photo = models.Photo(
-            cloudinary_url=f"/static/uploads/{img.filename}",
-            public_id=f"static/uploads/{img.filename}",
-            log_id=db_log.id
-        )
-        db.add(db_photo)
-    
+        try:
+            os.makedirs("static/uploads", exist_ok=True)
+            file_location = f"static/uploads/{img.filename}"
+            with open(file_location, "wb") as buffer:
+                shutil.copyfileobj(img.file, buffer)
+
+            db_photo = models.Photo(
+                cloudinary_url=f"/static/uploads/{img.filename}",
+                public_id=f"static/uploads/{img.filename}",
+                log_id=db_log.id
+            )
+            db.add(db_photo)
+        except OSError:
+            # Read-only filesystem (Vercel) — skip local file save
+            pass
+
     db.commit()
     db.refresh(db_log)
     return db_log
