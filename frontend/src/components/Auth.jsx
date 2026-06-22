@@ -48,41 +48,7 @@ export default function Auth({ onLoginSuccess }) {
     setView('login');
   };
 
-  const quickDemoLogin = async (selectedRole) => {
-    setError('');
-    setLoading(true);
-    const demoEmail = selectedRole === 'staff' ? 'staff@ngo.org' : 'admin@ngo.org';
-    const demoPassword = 'password';
-    try {
-      await loginUser(demoEmail, demoPassword);
-      const user = await getMe();
-      onLoginSuccess(user);
-    } catch (err) {
-      // If the login failed because the account is pending approval, show that message
-      if (err.message && err.message.includes('pending approval')) {
-        setError(err.message);
-        setLoading(false);
-        return;
-      }
 
-      // Demo accounts may not exist yet – fall back to creating them
-      try {
-        const demoName = selectedRole === 'staff' ? 'John Doe' : 'Sarah Connor';
-        await registerUser(demoName, demoEmail, demoPassword, selectedRole);
-        await loginUser(demoEmail, demoPassword);
-        const user = await getMe();
-        onLoginSuccess(user);
-      } catch (innerErr) {
-        if (innerErr.message && innerErr.message.includes('pending approval')) {
-          setError(innerErr.message);
-        } else {
-          setError('Could not connect to the server. Make sure the backend is running.');
-        }
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="flex-grow flex items-center justify-center p-4 min-h-screen bg-gradient-to-tr from-blue-500/10 via-slate-50 to-emerald-500/10 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/20">
@@ -152,18 +118,7 @@ export default function Auth({ onLoginSuccess }) {
               {loading ? 'Signing In...' : 'Sign In'}
             </button>
 
-            {/* Quick test portals */}
-            <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-700/50">
-              <p className="text-xs text-center text-slate-400 dark:text-slate-500 mb-3">Quick Demo Login (Evaluator mode)</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button type="button" onClick={() => quickDemoLogin('staff')} disabled={loading} className="flex items-center justify-center gap-1.5 py-2 px-3 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 disabled:opacity-50">
-                  <User className="w-3.5 h-3.5 text-brand-500" /> Staff Portal
-                </button>
-                <button type="button" onClick={() => quickDemoLogin('admin')} disabled={loading} className="flex items-center justify-center gap-1.5 py-2 px-3 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 disabled:opacity-50">
-                  <Shield className="w-3.5 h-3.5 text-emerald-500" /> Admin Panel
-                </button>
-              </div>
-            </div>
+
 
             <div className="text-center mt-6">
               <p className="text-xs text-slate-500 dark:text-slate-400">

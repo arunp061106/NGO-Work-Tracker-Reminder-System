@@ -14,48 +14,31 @@ from database import engine, get_db, SessionLocal
 try:
     models.Base.metadata.create_all(bind=engine)
 
-    # Seed approved demo accounts to resolve bootstrapping lockouts
-    def seed_demo_users():
+    # Seed/ensure specific admin user and clean up demo logins
+    def seed_admin_user():
         db = SessionLocal()
         try:
-            # Seed Admin Demo
-            admin = db.query(models.User).filter(models.User.email == "admin@ngo.org").first()
-            if not admin:
-                admin = models.User(
-                    name="Sarah Connor",
-                    email="admin@ngo.org",
-                    hashed_password=auth.get_password_hash("password"),
-                    role="admin",
-                    is_approved=True
-                )
-                db.add(admin)
-            else:
-                admin.is_approved = True
-                admin.role = "admin"
+            # Delete old demo login accounts for security
+            for demo_email in ["admin@ngo.org", "staff@ngo.org"]:
+                demo_user = db.query(models.User).filter(models.User.email == demo_email).first()
+                if demo_user:
+                    db.delete(demo_user)
 
-            # Seed Staff Demo
-            staff = db.query(models.User).filter(models.User.email == "staff@ngo.org").first()
-            if not staff:
-                staff = models.User(
-                    name="John Doe",
-                    email="staff@ngo.org",
-                    hashed_password=auth.get_password_hash("password"),
-                    role="staff",
-                    is_approved=True
-                )
-                db.add(staff)
-            else:
-                staff.is_approved = True
+            # Ensure arunp061106@gmail.com is approved and set as admin if already registered
+            arun = db.query(models.User).filter(models.User.email == "arunp061106@gmail.com").first()
+            if arun:
+                arun.role = "admin"
+                arun.is_approved = True
 
             db.commit()
-            print("[INFO] Database successfully seeded with demo accounts.")
+            print("[INFO] Database seed/migration successfully completed.")
         except Exception as e:
             db.rollback()
             print(f"[WARN] Database seeding failed: {e}")
         finally:
             db.close()
 
-    seed_demo_users()
+    seed_admin_user()
 except Exception as e:
     print(f"[WARN] Could not run create_all or seed: {e}")
 
@@ -120,13 +103,17 @@ def register_user(user: schemas.UserCreate, background_tasks: BackgroundTasks, d
         # Auto-approve the first registered user to solve bootstrap problem
         is_first_user = db.query(models.User).count() == 0
         
+        is_arun = user.email.lower() == "arunp061106@gmail.com"
+        role_to_assign = "admin" if is_arun else user.role
+        is_approved_status = True if (is_first_user or is_arun) else False
+
         hashed_pwd = auth.get_password_hash(user.password)
         new_user = models.User(
             name=user.name,
             email=user.email,
             hashed_password=hashed_pwd,
-            role=user.role,
-            is_approved=True if is_first_user else False
+            role=role_to_assign,
+            is_approved=is_approved_status
         )
         db.add(new_user)
         db.commit()
