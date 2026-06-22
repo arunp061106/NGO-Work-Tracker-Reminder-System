@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ClipboardSignature, Image, Check, MapPin, Trash2, Download, X, Loader2 } from 'lucide-react';
-import { createLog } from '../api';
+import { createLog, API_BASE } from '../api';
 
 export default function DailyWorkLog({ currentUser, tasks, logs, onRefreshLogs, onCompleteTask, addNotification, gpsCoords }) {
   const [selectedTaskId, setSelectedTaskId] = useState('');
@@ -88,8 +88,7 @@ export default function DailyWorkLog({ currentUser, tasks, logs, onRefreshLogs, 
   const pendingTasks = tasks.filter(t => t.status !== 'Completed' && (currentUser.role === 'admin' || t.staff_id === currentUser.id));
   const myLogs = logs.filter(l => currentUser.role === 'admin' || l.staff_id === currentUser.id);
 
-  // Backend base URL for serving uploaded photos
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  // API_BASE is imported from ../api — uses validated VITE_API_URL
 
   return (
     <div className="space-y-6 fade-in">

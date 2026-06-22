@@ -34,6 +34,7 @@ const API_BASE = _isSafeApiUrl(_raw)
     })();
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
+export { API_BASE };
 export const getToken = () => localStorage.getItem('ngo_token');
 export const setToken = (token) => localStorage.setItem('ngo_token', token);
 export const removeToken = () => localStorage.removeItem('ngo_token');
