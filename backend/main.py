@@ -21,9 +21,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS configuration — allow_origins=["*"] + allow_credentials=True is
-# forbidden by the CORS spec and browsers will block it in production.
-# Use explicit origins + a regex to allow all *.vercel.app deployments.
+# CORS configuration — allow all localhost origins for development,
+# and all https origins for production (Vercel, custom domains, etc.)
+# JWT tokens are sent via Authorization header, not cookies, so
+# allow_credentials can be False which permits allow_origins=["*"].
 CORS_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
@@ -32,7 +33,7 @@ CORS_ORIGINS = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"https://.*",   # allow all https origins (Vercel, custom domains)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
