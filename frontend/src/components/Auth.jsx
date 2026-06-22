@@ -58,6 +58,13 @@ export default function Auth({ onLoginSuccess }) {
       const user = await getMe();
       onLoginSuccess(user);
     } catch (err) {
+      // If the login failed because the account is pending approval, show that message
+      if (err.message && err.message.includes('pending approval')) {
+        setError(err.message);
+        setLoading(false);
+        return;
+      }
+
       // Demo accounts may not exist yet – fall back to creating them
       try {
         const demoName = selectedRole === 'staff' ? 'John Doe' : 'Sarah Connor';
@@ -66,7 +73,11 @@ export default function Auth({ onLoginSuccess }) {
         const user = await getMe();
         onLoginSuccess(user);
       } catch (innerErr) {
-        setError('Could not connect to the server. Make sure the backend is running.');
+        if (innerErr.message && innerErr.message.includes('pending approval')) {
+          setError(innerErr.message);
+        } else {
+          setError('Could not connect to the server. Make sure the backend is running.');
+        }
       }
     } finally {
       setLoading(false);

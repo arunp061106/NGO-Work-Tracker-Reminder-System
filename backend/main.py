@@ -7,14 +7,57 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 import models, schemas, auth, email_service
-from database import engine, get_db
+from database import engine, get_db, SessionLocal
 
 # Create database tables — wrapped so a cold-start on Vercel doesn't crash
 # if the DB is momentarily unreachable.
 try:
     models.Base.metadata.create_all(bind=engine)
+
+    # Seed approved demo accounts to resolve bootstrapping lockouts
+    def seed_demo_users():
+        db = SessionLocal()
+        try:
+            # Seed Admin Demo
+            admin = db.query(models.User).filter(models.User.email == "admin@ngo.org").first()
+            if not admin:
+                admin = models.User(
+                    name="Sarah Connor",
+                    email="admin@ngo.org",
+                    hashed_password=auth.get_password_hash("password"),
+                    role="admin",
+                    is_approved=True
+                )
+                db.add(admin)
+            else:
+                admin.is_approved = True
+                admin.role = "admin"
+
+            # Seed Staff Demo
+            staff = db.query(models.User).filter(models.User.email == "staff@ngo.org").first()
+            if not staff:
+                staff = models.User(
+                    name="John Doe",
+                    email="staff@ngo.org",
+                    hashed_password=auth.get_password_hash("password"),
+                    role="staff",
+                    is_approved=True
+                )
+                db.add(staff)
+            else:
+                staff.is_approved = True
+
+            db.commit()
+            print("[INFO] Database successfully seeded with demo accounts.")
+        except Exception as e:
+            db.rollback()
+            print(f"[WARN] Database seeding failed: {e}")
+        finally:
+            db.close()
+
+    seed_demo_users()
 except Exception as e:
-    print(f"[WARN] Could not run create_all: {e}")
+    print(f"[WARN] Could not run create_all or seed: {e}")
 
 app = FastAPI(
     title="NGO Work Tracker API",
